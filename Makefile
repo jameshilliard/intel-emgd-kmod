@@ -1,94 +1,133 @@
-EMGD_MOD_DIR = drivers/staging/emgd
+#----------------------------------------------------------------------------
+# Filename: Makefile.gnu
+# $Revision: 1.59 $
+#----------------------------------------------------------------------------
+# Copyright (c) 2002-2010, Intel Corporation.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#----------------------------------------------------------------------------
+export EGD_TOPLEVEL = DRM Driver
 
-ENVDIR = pvr/services4/srvkm/env/linux
-COMMONDIR = pvr/services4/srvkm/common
-BRIDGEDDIR = pvr/services4/srvkm/bridged
-SYSCONFIGDIR = pvr/services4/system/common
-SGXDIR = pvr/services4/srvkm/devices/sgx
-DISPCLASSDIR = pvr/services4/3rdparty/emgd_displayclass
-DBGDRVDIR = pvr/tools/intern/debug/dbgdriv
-BUFFERCLASSDIR = pvr/services4/3rdparty/emgd_bufferclass
+KERNELMODVER ?= $(shell ls -d /lib/modules/*automotive)
+KERNELVER ?= $(subst /lib/modules/,,$(KERNELMODVER))
+KERNELDIR ?= /lib/modules/$(KERNELVER)/build
+INSTALLDIR ?= /lib/modules/$(KERNELVER)/kernel/drivers/gpu/drm/emgd
+INCLUDEDIR ?= /usr/src/kernels/$(KERNELVER)/include/linux
+
+BLUE = \033[34m
+OFF = \033[0m
+BUILD ?= release
+CONFIG_PVR_RELEASE ?= $(BUILD)
+CONFIG_DRM_EGD ?= m
+
+# Get the include paths pointed to the right place. 
+export  EMGD_MOD_DIR ?= $(CURDIR)
 
 BUILDDATE ?= $(shell date +%Y%m%d)
 
-include_dirs := \
-	-I$(EMGD_MOD_DIR)/include \
-        -I$(EMGD_MOD_DIR)/emgd/display/mode/cmn \
-        -I$(EMGD_MOD_DIR)/emgd/video/overlay/cmn \
-        -I$(EMGD_MOD_DIR)/emgd/video/msvdx \
-        -I$(EMGD_MOD_DIR)/emgd/include \
-        -I$(EMGD_MOD_DIR)/emgd/cfg \
-        -I$(EMGD_MOD_DIR)/emgd/pal/lpd \
-        -I$(EMGD_MOD_DIR)/emgd/pal/lvds \
-        -I$(EMGD_MOD_DIR)/emgd/pal/ch7036 \
-        -I$(EMGD_MOD_DIR)/emgd/drm \
-        -Iinclude/drm \
-        -I$(EMGD_MOD_DIR)/pvr/include4 \
-        -I$(EMGD_MOD_DIR)/pvr/services4/include \
-        -I$(EMGD_MOD_DIR)/pvr/services4/include/env/linux \
-        -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/env/linux \
-        -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/include \
-        -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/bridged \
-        -I$(EMGD_MOD_DIR)/pvr/services4/system/plb \
-        -I$(EMGD_MOD_DIR)/pvr/services4/system/tnc \
-        -I$(EMGD_MOD_DIR)/pvr/services4/system/include \
-        -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/hwdefs \
-        -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/bridged/sgx \
-        -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/devices/sgx \
-        -I$(EMGD_MOD_DIR)/pvr/services4/3rdparty/emgd_bufferclass \
-        -I$(EMGD_MOD_DIR)/pvr/tools/intern/debug \
+PROJECT_INCLUDES = \
+	   -I$(EMGD_MOD_DIR)/include \
+	   -I$(EMGD_MOD_DIR)/emgd/display/mode/cmn \
+	   -I$(EMGD_MOD_DIR)/emgd/video/overlay/cmn \
+	   -I$(EMGD_MOD_DIR)/emgd/video/msvdx \
+	   -I$(EMGD_MOD_DIR)/emgd/include \
+	   -I$(EMGD_MOD_DIR)/emgd/cfg \
+	   -I$(EMGD_MOD_DIR)/emgd/pal/lpd \
+	   -I$(EMGD_MOD_DIR)/emgd/pal/lvds \
+	   -I$(EMGD_MOD_DIR)/emgd/pal/ch7036 \
+	   -I$(EMGD_MOD_DIR)/emgd/drm \
+	   -I$(KERNELDIR)/include/drm \
+	   -I$(EMGD_MOD_DIR)/pvr/include4 \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/include \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/include/env/linux \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/env/linux \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/include \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/bridged \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/system/plb \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/system/tnc \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/system/include \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/hwdefs \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/bridged/sgx \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/srvkm/devices/sgx \
+	   -I$(EMGD_MOD_DIR)/pvr/services4/3rdparty/emgd_bufferclass \
+	   -I$(EMGD_MOD_DIR)/pvr/tools/intern/debug \
+	   -I$(INCLUDEDIR)\
+	   -DSUPPORT_DRI_DRM_EXT \
+	   -DLINUX \
+	   -DPVR_BUILD_DIR="\"emgd\"" \
+	   -DPVR_BUILD_DATE="\"$(BUILDDATE)\"" \
+	   -DPVR_BUILD_TYPE="\"$(CONFIG_PVR_RELEASE)\"" \
+	   -DBUILD=$(CONFIG_PVR_RELEASE) \
+	   -DPVR_SECURE_HANDLES \
+	   -DPVR_PROC_USE_SEQ_FILE \
+	   -DLDM_PCI \
+	   -DSUPPORT_CACHEFLUSH_ON_ALLOC \
+	   -DSUPPORT_DRI_DRM \
+	   -DSGX535 \
+	   -DSGX_CORE_REV=121 \
+	   -UDEBUG_LOG_PATH_TRUNCATE \
+	   -DDISPLAY_CONTROLLER=emgd_dc \
+	   -D_XOPEN_SOURCE=600 \
+	   -DSERVICES4 \
+	   -DPVR2D_VALIDATE_INPUT_PARAMS \
+	   -DSUPPORT_SRVINIT \
+	   -DSUPPORT_SGX \
+	   -DSUPPORT_PERCONTEXT_PB \
+	   -DSUPPORT_LINUX_X86_WRITECOMBINE \
+	   -DSUPPORT_SECURE_DRM_AUTH_EXPORT \
+	   -DSUPPORT_PDUMP_DELAYED_INITPHASE_TERMINATION \
+	   -DTRANSFER_QUEUE \
+	   -DSYS_USING_INTERRUPTS \
+	   -DSUPPORT_HW_RECOVERY \
+	   -DSUPPORT_ACTIVE_POWER_MANAGEMENT \
+	   -DPVR_SECURE_HANDLES \
+	   -DUSE_PTHREADS \
+	   -DSUPPORT_SGX_EVENT_OBJECT \
+	   -DSUPPORT_SGX_HWPERF \
+	   -DSUPPORT_LINUX_X86_PAT \
+	   -DSUPPORT_SGX535 \
+	   -DSUPPORT_CACHE_LINE_FLUSH \
+	   -DSUPPORT_CPU_CACHED_BUFFERS \
+	   -DDEBUG_MESA_OGL_TRACE \
+	   -DSUPPORT_EGL_IMAGE_SYNC_DEPENDENCY \
 
-ccflags-y += $(include_dirs)
 
-ccflags-y += \
-	-DSUPPORT_DRI_DRM_EXT \
-        -DLINUX \
-        -DPVR_BUILD_DIR="\"emgd\"" \
-		-DPVR_BUILD_DATE="\"$(BUILDDATE)\"" \
-        -DPVR_SECURE_HANDLES \
-        -DPVR_PROC_USE_SEQ_FILE \
-        -DLDM_PCI \
-        -DSUPPORT_CACHEFLUSH_ON_ALLOC \
-        -DSUPPORT_DRI_DRM \
-        -DSGX535 \
-        -DSGX_CORE_REV=121 \
-        -UDEBUG_LOG_PATH_TRUNCATE \
-        -DDISPLAY_CONTROLLER=emgd_dc \
-        -D_XOPEN_SOURCE=600 \
-        -DSERVICES4 \
-        -DPVR2D_VALIDATE_INPUT_PARAMS \
-        -DSUPPORT_SRVINIT \
-        -DSUPPORT_SGX \
-        -DSUPPORT_PERCONTEXT_PB \
-        -DSUPPORT_LINUX_X86_WRITECOMBINE \
-        -DSUPPORT_SECURE_DRM_AUTH_EXPORT \
-        -DSUPPORT_PDUMP_DELAYED_INITPHASE_TERMINATION \
-        -DTRANSFER_QUEUE \
-        -DSYS_USING_INTERRUPTS \
-        -DSUPPORT_HW_RECOVERY \
-        -DSUPPORT_ACTIVE_POWER_MANAGEMENT \
-        -DPVR_SECURE_HANDLES \
-        -DUSE_PTHREADS \
-        -DSUPPORT_SGX_EVENT_OBJECT \
-        -DSUPPORT_SGX_HWPERF \
-        -DSUPPORT_LINUX_X86_PAT \
-        -DSUPPORT_SGX535 \
-        -DSUPPORT_CACHE_LINE_FLUSH \
-        -DSUPPORT_CPU_CACHED_BUFFERS \
-        -DDEBUG_MESA_OGL_TRACE \
-        -DSUPPORT_EGL_IMAGE_SYNC_DEPENDENCY
+ifeq "$(strip $(CONFIG_PVR_RELEASE))" "release"
+	ccflags-y += -DRELEASE
+else
+	# FIXME: Looks like this causes conflicts in the emgd code.
+	ccflags-y += -DDEBUG
+	ccflags-y += -DDEBUG_BUILD_TYPE 
+endif
 
-ccflags-$(CONFIG_DRM_EMGD_RELEASE) += -DBUILD="\"release\"" -DPVR_BUILD_TYPE="\"release\"" -DRELEASE
-ccflags-$(CONFIG_DRM_EMGD_DEBUG) += -DBUILD="\"debug\"" -DPVR_BUILD_TYPE="\"debug\"" -DDEBUG -DDEBUG_BUILD_TYPE
-ccflags-$(COFNIG_DRM_EMGD_PDUMP) += -DPDUMP=1
+EXTRA_CFLAGS += $(PROJECT_INCLUDES)
 
+ifeq ($(PDUMP),1)
+	EXTRA_CFLAGS += -DPDUMP=1
+endif
 
 EMGD_OBJS := \
 	emgd/drm/emgd_fb.o \
-    emgd/drm/emgd_fbcon.o \
-    emgd/drm/emgd_crtc.o \
-    emgd/drm/emgd_encoder.o \
-    emgd/drm/emgd_connector.o \
+	emgd/drm/emgd_fbcon.o \
+	emgd/drm/emgd_crtc.o \
+	emgd/drm/emgd_encoder.o \
+	emgd/drm/emgd_connector.o \
 	emgd/drm/emgd_mmap.o \
 	emgd/drm/emgd_drv.o \
 	emgd/drm/emgd_interface.o \
@@ -170,12 +209,23 @@ EMGD_OBJS := \
 	emgd/utils/memmap.o \
 	emgd/utils/math_fix.o \
 
+ENVDIR = pvr/services4/srvkm/env/linux
+COMMONDIR = pvr/services4/srvkm/common
+BRIDGEDDIR = pvr/services4/srvkm/bridged
+SYSCONFIGDIR = pvr/services4/system/common
+SGXDIR = pvr/services4/srvkm/devices/sgx
+DISPCLASSDIR = pvr/services4/3rdparty/emgd_displayclass
+BUFFERCLASSDIR = pvr/services4/3rdparty/emgd_bufferclass
+
+ifeq ($(PDUMP),1)
+DBGDRVDIR = pvr/tools/intern/debug/dbgdriv
 
 DBGDRV_OBJS = $(DBGDRVDIR)/linux/main.o \
               $(DBGDRVDIR)/common/dbgdriv.o \
               $(DBGDRVDIR)/common/ioctl.o \
               $(DBGDRVDIR)/linux/hostfunc.o \
               $(DBGDRVDIR)/common/hotkey.o
+endif
 
 ENV_OBJS = $(ENVDIR)/osfunc.o \
 	   $(ENVDIR)/mutils.o \
@@ -216,6 +266,8 @@ SYSCONFIG_OBJS = $(SYSCONFIGDIR)/sysconfig.o \
 	        pvr/services4/system/tnc/sysconfig.o \
 	        pvr/services4/system/plb/sysconfig.o \
 		$(SYSCONFIGDIR)/sysutils.o
+#		 $(SYSCONFIGDIR)/sysirq.o
+#	 	 $(SYSCONFIGDIR)/ospm_power.o \
 
 SGX_OBJS = $(SGXDIR)/sgxinit.o \
 	 $(SGXDIR)/sgxpower.o \
@@ -230,7 +282,7 @@ DC_OBJS = $(DISPCLASSDIR)/emgd_dc.o \
 	  $(DISPCLASSDIR)/emgd_dc_linux.o
 
 BC_OBJS = $(BUFFERCLASSDIR)/emgd_bc.o \
-		  $(BUFFERCLASSDIR)/emgd_bc_linux.o
+	  $(BUFFERCLASSDIR)/emgd_bc_linux.o
 
 
 emgd-y := \
@@ -243,6 +295,39 @@ emgd-y := \
 	$(SGX_OBJS) \
 	$(BC_OBJS) \
 
-emgd-$(CONFIG_DRM_EMGD_PDUMP) += $(DBGDRV_OBJS)
+ifeq ($(PDUMP),1)
+	emgd-y += $(DBGDRV_OBJS)
+endif
 
-obj-$(CONFIG_DRM_EMGD) += emgd.o
+obj-$(CONFIG_DRM_EGD) += emgd.o
+
+all:: clean modules
+
+modules::
+	@echo $(CURDIR) -- $(CONFIG_PVR_RELEASE)
+	@echo "$(MAKE) -C $(KERNELDIR) M=$(CURDIR) modules"
+	@$(MAKE) -C $(KERNELDIR) M=$(CURDIR) modules
+
+clean::
+	@rm -f $(emgd-y)
+	@rm -f emgd.o emgd.mod.* emgd.ko Module.* modules.order
+	@find . -name "*.cmd" -exec rm '{}' \;
+
+install::
+	install -o root -g root -m 755 -d $(INSTALLDIR)
+	install -o root -g root -m 744 emgd.ko $(INSTALLDIR)
+	/sbin/depmod -a
+
+uninstall::
+	rmmod $(INSTALLDIR)/emgd.ko
+	rm -rf $(INSTALLDIR)/emgd.ko
+	/sbin/depmod -a
+
+debug::
+	export CONFIG_PVR_RELEASE=debug; $(MAKE) modules
+
+package:: clean
+	@echo -e "$(BLUE)Packaging $(EGD_TOPLEVEL)$(OFF)";
+	mkdir -p $(EGD_PKG)
+	tar -C $(EMGD_MOD_DIR) --exclude "CVS" -czf $(EGD_PKG)/emgd_drm.tgz *
+
