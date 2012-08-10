@@ -1,0 +1,10 @@
+[Unit]
+Description=EMGD Graphics Kernel Driver Setup
+Before=graphical.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/intel-emgd-kmod.init
+
+[Install]
+WantedBy=basic.target

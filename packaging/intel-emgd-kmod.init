@@ -1,0 +1,91 @@
+#!/bin/sh
+
+##################################################################
+#
+#        Russellville  CrownBay    CrossvilleOKI    ML7213   NexCOM
+#monitor LVDS 7       LVDS 13     LVDS 7           LVDS 13   LVDS 7
+#Gfx     8086:8108    8086:4108   8086:4108        8086:4108 8086:4108
+#
+#################################################################
+#
+#       unknown
+# 1     Russellville                    DEVICE has 8086:8108
+# 2     CrownBay                        VENDOR !has 10db && DEVICE has 8086:4108
+# 3     CrossivilleOKI          	VENDOR has 10db && DEVICE has 8086:4108
+
+DEVICE_LSPCI=`lspci -n | cut -d$' ' -f3`
+
+find_board_type() {
+	local __resultvar=$1
+	local _board_type="unknown"
+        local IS_8108='0'
+        local IS_4108='0'
+        local IS_ML7213='0'
+        local IS_CROWNBAY='0'
+        local oldIFS=$IFS
+        #set -x
+	for entry in $DEVICE_LSPCI; do
+                #echo $entry
+                IFS=$':'
+        	set -- $entry
+
+		VENDOR=`echo $1`
+		DEVICE=`echo $2`
+        	if [ $VENDOR == '8086' ]; then
+        	    	if [ $DEVICE == '8108' ]; then 
+                		IS_8108='1'
+                		break
+            		elif [ $DEVICE == '4108' ]; then
+                		IS_4108='1'
+            		fi
+        	elif [ $VENDOR == '10db' ]; then
+            		IS_ML7213='1'
+        	elif [ $VENDOR == '12d8' ]; then
+            		IS_CROWNBAY='1'
+        	fi
+        	IFS=$oldIFS
+	done
+
+	if [ $IS_8108 == '1' ]; then
+		_board_type='Russellville'
+	elif [ $IS_4108 == '1' ]; then
+		if [ $IS_ML7213 == '1' ]; then
+			_board_type='CrossvilleOKI'
+		elif [ $IS_CROWNBAY == '1' ]; then
+			_board_type='CrownBay'
+		else
+			_board_type='NextCom'
+		fi
+	else
+		_board_type='unknown'
+	fi
+
+	# This logic is stupid and the reliable method is to query the firmware interface, which now is not available yet.
+
+	echo "$_board_type"
+}
+
+platform="unknown"
+set_config() {
+        boardname=`find_board_type $platform`
+        echo "Boardname is $boardname"
+	configid=3
+	case $boardname in
+		Russellville)
+			configid=1
+			;;
+		CrownBay)
+			configid=2
+			;;
+		NextCom)
+			configid=3
+			;;
+		CrossvilleOKI)
+			configid=1
+			;;
+	esac
+        echo "Configid is $configid"
+        modprobe emgd configid=$configid
+}
+set_config
+exit $?
