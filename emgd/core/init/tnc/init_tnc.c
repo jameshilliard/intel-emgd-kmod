@@ -51,7 +51,7 @@
 #include <tnc/igd_tnc_wa.h>
 
 #include "../cmn/init_dispatch.h"
-#include "/usr/include/linux/pci_regs.h"
+#include "pci_regs.h"
 
 /*!
  * @addtogroup core_group

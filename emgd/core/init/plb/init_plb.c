@@ -50,7 +50,7 @@
 #include <plb/context.h>
 
 #include "../cmn/init_dispatch.h"
-#include "/usr/include/linux/pci_regs.h"
+#include "linux/pci_regs.h"
 /*!
  * @addtogroup core_group
  * @{
