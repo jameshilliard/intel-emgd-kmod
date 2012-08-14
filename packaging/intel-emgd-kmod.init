@@ -68,24 +68,17 @@ find_board_type() {
 platform="unknown"
 set_config() {
         boardname=`find_board_type $platform`
-        echo "Boardname is $boardname"
 	configid=3
-	case $boardname in
-		Russellville)
-			configid=1
-			;;
-		CrownBay)
-			configid=2
-			;;
-		NextCom)
-			configid=3
-			;;
-		CrossvilleOKI)
-			configid=1
-			;;
-	esac
-        echo "Configid is $configid"
-        modprobe emgd configid=$configid
+	if [ $boardname == 'CrownBay' ]
+	then
+		configid=2
+	elif [ $boardname == 'Russellville' ] || [ $boardname == 'CrossvilleOKI' ]
+	then
+		configid=1
+	fi
+
+        echo "Boardname is $boardname, configid=$configid"
+        /sbin/modprobe emgd configid=$configid
 }
 set_config
 exit $?

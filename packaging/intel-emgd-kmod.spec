@@ -20,8 +20,8 @@
 # THE SOFTWARE.
 #----------------------------------------------------------------------------
 
-%define debug_package %{nil}
-%define modpath %(ls -d /lib/modules/*/kernel)/drivers/gpu/drm/emgd
+%define kernel_version %(ls -d /lib/modules/*automotive|sed "s:/lib/modules/::")
+%define modpath /lib/modules/%{kernel_version}/kernel/drivers/gpu/drm/emgd
 
 Name: intel-emgd-kmod
 Summary: Intel EMGD kernel module
@@ -35,7 +35,7 @@ Source0: %{name}-%{version}.tar.gz
 Source1: intel-emgd-kmod.service
 Source2: intel-emgd-kmod.init
 BuildRequires: kernel-adaptation-intel-automotive-devel, kmod
-
+Requires: pciutils, kmod
 
 %description
 Intel EMGD kernel module for kernel
@@ -60,7 +60,7 @@ rm -Rf $RPM_BUILD_ROOT
 
 %post 
 ## create the dependency of kernel modules
-/sbin/depmod -a >/dev/null 2>&1 
+/sbin/depmod -av %{kernel_version} >/dev/null 2>&1 
 
 mkdir -p /usr/lib/systemd/system/basic.target.wants/
 pushd /usr/lib/systemd/system/basic.target.wants/
@@ -73,7 +73,7 @@ if [ -x /bin/systemctl ]; then
 fi
 
 %postun
-/sbin/depmod -a >/dev/null 2>&1 
+/sbin/depmod -av %{kernel_version} >/dev/null 2>&1 
 rm -f /usr/lib/systemd/system/basic.target.wants/intel-emgd-kmod.service
 if [ -x /bin/systemctl ]; then
     systemctl daemon-reload >/dev/null 2>&1 || :
