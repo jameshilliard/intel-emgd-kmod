@@ -578,9 +578,8 @@ emgd_drm_config_t config_drm = {
 		&config_params_config1,
 		&config_params_config2,
 		&config_params_config3,
-                &config_params_config4,
-                &config_params_config5
-
+        	&config_params_config4,
+        	&config_params_config5
 	}
 };
 
