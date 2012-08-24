@@ -387,6 +387,159 @@ static igd_param_t config_params_config3 = {
 	0			/* Polling (1 = override interrupt support and use polling) */
 };
 
+/* Config #4: Crossville sDVO (VGA) - LVDS 7' */
+static igd_param_t config_params_config4 = {
+       1*256*1024,             /* Page request */
+       0,              /* Max frame buffer size */
+       1,              /* Preserve registers */
+       0x6,            /* Display flags */
+       { 2, 4, 0, 0, 0 },              /* Display port order */
+       {               /* Display Params */
+               {               /* Port */
+                       4,              /* Display port number */
+                       0x180,          /* Parameters present */
+                       0x0,            /* EDID flag */
+                       0x0,            /* Flags when EDID is available */
+                       0x4,            /* Flags when EDID is not available */
+                       0,              /* DDC GPIO pins */
+                       0,              /* DDC speed */
+                       0,              /* DDC DAB */
+                       0,              /* I2C GPIO pins */
+                       0,              /* I2C speed */
+                       0,              /* I2C DAB */
+                       {               /* Flat Panel Info */
+                               0,              /* Flat Panel width */
+                               0,              /* Flat Panel height */
+                               0,              /* Flat Panel power method */
+                               0,              /* VDD active & DVO clock/data active */
+                               0,              /* DVO clock/data active & backlight enable */
+                               0,              /* backlight disable & DVO clock/data inactive */
+                               0,              /* DVO clock/data inactive & VDD inactive */
+                               0                       /* VDD inactive & VDD active */
+                       },
+                       {               /* DTD Info */
+                               sizeof(dtd_config1_port4_dtdlist)/sizeof(igd_display_info_t),           /* Number of DTDs */
+                               dtd_config1_port4_dtdlist               /* DTD name */
+                       },
+                       {               /* Attribute Info */
+                               sizeof(attrs_config1_port4)/sizeof(igd_param_attr_t),           /* Number of attributes */
+                               attrs_config1_port4             /* Attr name */
+                       }
+               },
+               {               /* Port */
+                       2,              /* Display port number */
+                       0x0,            /* Parameters present */
+                       0x1,            /* EDID flag */
+                       0x2,            /* Flags when EDID is available */
+                       0x1,            /* Flags when EDID is not available */
+                       0,              /* DDC GPIO pins */
+                       0,              /* DDC speed */
+                       0,              /* DDC DAB */
+                       0,              /* I2C GPIO pins */
+                       0,              /* I2C speed */
+                       0,              /* I2C DAB */
+                       {               /* Flat Panel Info */
+                               0,              /* Flat Panel width */
+                               0,              /* Flat Panel height */
+                               0,              /* Flat Panel power method */
+                               0,              /* VDD active & DVO clock/data active */
+                               0,              /* DVO clock/data active & backlight enable */
+                               0,              /* backlight disable & DVO clock/data inactive */
+                               0,              /* DVO clock/data inactive & VDD inactive */
+                               0                       /* VDD inactive & VDD active */
+                       },
+                       {               /* DTD Info */
+                       0, NULL
+                       },
+                       {               /* Attribute Info */
+                       0, NULL
+                       }
+               },
+       },
+       0,                      /* 24-bit RGB color that framebuffer is cleared to */
+       1,                      /* Quickboot (1 = enabled) */
+       0,                      /* Quickboot seamless (1 = enabled) */
+       0,                      /* Quickboot video input (1 = enabled) */
+       0                       /* Polling (1 = override interrupt support and use polling) */
+};
+
+/* Config #5: Nexcom VCT1000 sDVO (VGA) - LVDS 7' */
+static igd_param_t config_params_config5 = {
+       1*256*1024,             /* Page request */
+       0,              /* Max frame buffer size */
+       1,              /* Preserve registers */
+       0x6,            /* Display flags */
+       { 2, 4, 0, 0, 0 },              /* Display port order */
+       {               /* Display Params */
+               {               /* Port */
+                       4,              /* Display port number */
+                       0x180,          /* Parameters present */
+                       0x0,            /* EDID flag */
+                       0x0,            /* Flags when EDID is available */
+                       0x4,            /* Flags when EDID is not available */
+                       0,              /* DDC GPIO pins */
+                       0,              /* DDC speed */
+                       0,              /* DDC DAB */
+                       0,              /* I2C GPIO pins */
+                       0,              /* I2C speed */
+                       0,              /* I2C DAB */
+                       {               /* Flat Panel Info */
+                               0,              /* Flat Panel width */
+                               0,              /* Flat Panel height */
+                               0,              /* Flat Panel power method */
+                               0,              /* VDD active & DVO clock/data active */
+                               0,              /* DVO clock/data active & backlight enable */
+                               0,              /* backlight disable & DVO clock/data inactive */
+                               0,              /* DVO clock/data inactive & VDD inactive */
+                               0                       /* VDD inactive & VDD active */
+                       },
+                       {               /* DTD Info */
+                               sizeof(dtd_config3_port4_dtdlist)/sizeof(igd_display_info_t),           /* Number of DTDs */
+                               dtd_config3_port4_dtdlist               /* DTD name */
+                       },
+                       {               /* Attribute Info */
+                               sizeof(attrs_config3_port4)/sizeof(igd_param_attr_t),           /* Number of attributes */
+                               attrs_config3_port4             /* Attr name */
+                       }
+               },
+               {               /* Port */
+                       2,              /* Display port number */
+                       0x0,            /* Parameters present */
+                       0x1,            /* EDID flag */
+                       0x2,            /* Flags when EDID is available */
+                       0x1,            /* Flags when EDID is not available */
+                       0,              /* DDC GPIO pins */
+                       0,              /* DDC speed */
+                       0,              /* DDC DAB */
+                       0,              /* I2C GPIO pins */
+                       0,              /* I2C speed */
+                       0,              /* I2C DAB */
+                       {               /* Flat Panel Info */
+                               0,              /* Flat Panel width */
+                               0,              /* Flat Panel height */
+                               0,              /* Flat Panel power method */
+                               0,              /* VDD active & DVO clock/data active */
+                               0,              /* DVO clock/data active & backlight enable */
+                               0,              /* backlight disable & DVO clock/data inactive */
+                               0,              /* DVO clock/data inactive & VDD inactive */
+                               0                       /* VDD inactive & VDD active */
+                       },
+                       {               /* DTD Info */
+                       0, NULL
+                       },
+                       {               /* Attribute Info */
+                       0, NULL
+                       }
+               },
+       },
+       0,                      /* 24-bit RGB color that framebuffer is cleared to */
+       1,                      /* Quickboot (1 = enabled) */
+       0,                      /* Quickboot seamless (1 = enabled) */
+       0,                      /* Quickboot video input (1 = enabled) */
+       0                       /* Polling (1 = override interrupt support and use polling) */
+};
+
+
 /*
  * The emgd_drm_config_t structure is the main configuration structure
  * for the EMGD kernel module.
@@ -395,7 +548,7 @@ emgd_drm_config_t config_drm = {
 	1,	/* Whether to initialize the display at EMGD module startup time
 		 * (corresponds to the "init" module parameter)
 		 */
-	1,	/* The display configuration to use if initializing the display
+	2,	/* The display configuration to use if initializing the display
 		 * (corresponds to the "init" module parameter), where:
 		 * - 1 = Single port/display
 		 * - 2 = Cloned port/display (e.g. LVDS + CRT with different timings)
@@ -424,7 +577,10 @@ emgd_drm_config_t config_drm = {
 	{   /* driver parameters from above */
 		&config_params_config1,
 		&config_params_config2,
-		&config_params_config3
+		&config_params_config3,
+                &config_params_config4,
+                &config_params_config5
+
 	}
 };
 
@@ -442,6 +598,12 @@ void emgd_drm_override_user_config(int configid)
    {
        /* CrownBay 13inch LVDS */
        config_drm.width = 1366;
+       config_drm.height = 768;
+   }
+   else if ( configid == 4 || configid == 5)
+   {
+       /* Config #4: sDVO (VGA) for both Crossville - Nexcom */
+       config_drm.width = 1024;
        config_drm.height = 768;
    }
    else /* default */
