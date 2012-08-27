@@ -1,3 +1,8 @@
+* Mon Aug 27 2012 Geoffroy Van Cutsem <geoffroy.vancutsem@intel.com> submit/trunk/20120815.022220@1bbc794
+- Added 2 configs to enable sDVO port on Crossville-Lapis and Nexcon VTC-1000
+- sDVO (VGA) is the primary screen, default config is clone-mode
+- Init script still needs to be modified for these new configid
+
 * Mon Aug 13 2012 Quanxian Wang <quanxian.wang@intel.com> - 2667
 - Bug fix for pci_regs.h building error
 
