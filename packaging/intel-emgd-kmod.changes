@@ -1,5 +1,5 @@
 * Mon Aug 27 2012 Geoffroy Van Cutsem <geoffroy.vancutsem@intel.com> submit/trunk/20120815.022220@1bbc794
-- Added 2 configs to enable sDVO port on Crossville-Lapis and Nexcon VTC-1000
+- Add 2 configs to enable sDVO port on Crossvilles and Nexcom VTC-1000
 - sDVO (VGA) is the primary screen, default config is clone-mode
 - Init script still needs to be modified for these new configid
 
