@@ -35,7 +35,7 @@ Source0: %{name}-%{version}.tar.gz
 Source1: intel-emgd-kmod.service
 Source2: intel-emgd-kmod.init
 BuildRequires: kernel-adaptation-intel-automotive-devel, kmod
-Requires: pciutils, kmod
+Requires: pciutils, kmod, kernel-adaptation-intel-automotive
 
 %description
 Intel EMGD kernel module for kernel
