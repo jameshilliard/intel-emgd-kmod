@@ -78,6 +78,8 @@ set_config() {
 	fi
 
         echo "Boardname is $boardname, configid=$configid"
+        ## avoid depmod is not executed when image is created
+        depmod -a
         /sbin/modprobe emgd configid=$configid
 }
 set_config
