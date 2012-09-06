@@ -20,7 +20,10 @@
 # THE SOFTWARE.
 #----------------------------------------------------------------------------
 
-%define kernel_version %(ls -d /lib/modules/*automotive|sed "s:/lib/modules/::")
+%define debug_package %{nil}
+%define kernel_number_str "%(/bin/rpm -q kernel-adaptation-intel-automotive --queryformat \"%{VERSION}-%{RELEASE}\"|grep -iv 'installed')"
+%define kernel_number %(echo %{kernel_number_str})
+%define kernel_version %{kernel_number}-adaptation-intel-automotive
 %define modpath /lib/modules/%{kernel_version}/kernel/drivers/gpu/drm/emgd
 
 Name: intel-emgd-kmod
@@ -34,11 +37,21 @@ BuildRoot: %{_tmppath}/%{name}-%{version}
 Source0: %{name}-%{version}.tar.gz
 Source1: intel-emgd-kmod.service
 Source2: intel-emgd-kmod.init
-BuildRequires: kernel-adaptation-intel-automotive-devel, kmod
+BuildRequires: kernel-adaptation-intel-automotive-devel, kmod, rpm
 Requires: pciutils, kmod, kernel-adaptation-intel-automotive
 
 %description
 Intel EMGD kernel module for kernel
+
+%if %{kernel_number_str} != ""
+%package %{kernel_number}
+Summary: Intel EMGD kernel module
+Group: System Environment/Kernel
+Requires: pciutils, kmod, kernel-adaptation-intel-automotive-%{kernel_number}
+
+%description %{kernel_number}
+Intel EMGD kernel module for kernel
+%endif
 
 %prep
 %setup -q
@@ -58,7 +71,7 @@ install -m 755 -D %{SOURCE2} $RPM_BUILD_ROOT/usr/libexec/
 %clean  
 rm -Rf $RPM_BUILD_ROOT
 
-%post 
+%post %{kernel_number}
 ## create the dependency of kernel modules
 /sbin/depmod -av %{kernel_version} >/dev/null 2>&1 
 
@@ -72,19 +85,19 @@ if [ -x /bin/systemctl ]; then
     /bin/systemctl start intel-emgd-kmod.service > /dev/null 2>&1 || :
 fi
 
-%postun
+%postun %{kernel_number}
 /sbin/depmod -av %{kernel_version} >/dev/null 2>&1 
 rm -f /usr/lib/systemd/system/basic.target.wants/intel-emgd-kmod.service
 if [ -x /bin/systemctl ]; then
     systemctl daemon-reload >/dev/null 2>&1 || :
 fi
 
-%preun
+%preun %{kernel_number}
 if [ -x /bin/systemctl ]; then
     sytemctl stop intel-emgd-kmod.service >/dev/null 2>&1 || :
 fi
 
-%files 
+%files %{kernel_number}
 %defattr(-,root,root,-)
 %{modpath}/emgd.ko
 %{_libdir}/systemd/system/intel-emgd-kmod.service
