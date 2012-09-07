@@ -53,7 +53,7 @@ Intel EMGD kernel module for kernel
 %setup -q
 
 %build
-make -C drivers
+make -C drivers %{?_smp_mflags}
 
 %install
 
