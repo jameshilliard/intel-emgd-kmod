@@ -600,11 +600,14 @@ static void create_connectors(struct drm_device *dev,
 			connector_type = DRM_MODE_CONNECTOR_DisplayPort;
 			break;
 
+                case PD_DISPLAY_DRGB:
+                        connector_type = DRM_MODE_CONNECTOR_VGA;
+                        break;
+
 		case PD_DISPLAY_TVOUT:
 		case PD_DISPLAY_TVFP:
 		case PD_DISPLAY_RGBA:
 		case PD_DISPLAY_TVOUT_INT:
-		case PD_DISPLAY_DRGB:
 			EMGD_ERROR("Unsupported connector type");
 			return;
 
