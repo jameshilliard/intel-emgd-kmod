@@ -35,8 +35,6 @@ Vendor: Intel
 Group: System Environment/Kernel
 BuildRoot: %{_tmppath}/%{name}-%{version}
 Source0: %{name}-%{version}.tar.gz
-Source1: intel-emgd-kmod.service
-Source2: intel-emgd-kmod.init
 BuildRequires: kernel-adaptation-intel-automotive-devel, kmod, rpm
 Requires: pciutils, kmod, kernel-adaptation-intel-automotive
 
@@ -66,8 +64,8 @@ mkdir -p $RPM_BUILD_ROOT/usr/lib/systemd/system/
 mkdir -p $RPM_BUILD_ROOT/usr/libexec/
 install -m 755 -d $RPM_BUILD_ROOT%{modpath}
 install -m 744 drivers/emgd.ko $RPM_BUILD_ROOT%{modpath}
-install -m 755 -D %{SOURCE1} $RPM_BUILD_ROOT/usr/lib/systemd/system/
-install -m 755 -D %{SOURCE2} $RPM_BUILD_ROOT/usr/libexec/
+install -m 755 -D service/intel-emgd-kmod.service $RPM_BUILD_ROOT/usr/lib/systemd/system/
+install -m 755 -D service/intel-emgd-kmod.init $RPM_BUILD_ROOT/usr/libexec/
 
 %clean  
 rm -Rf $RPM_BUILD_ROOT
