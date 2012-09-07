@@ -52,14 +52,14 @@ Intel EMGD kernel module for kernel
 %setup -q
 
 %build
-make
+make -C drivers
 
 %install
 
 mkdir -p $RPM_BUILD_ROOT/usr/lib/systemd/system/
 mkdir -p $RPM_BUILD_ROOT/usr/libexec/
 install -m 755 -d $RPM_BUILD_ROOT%{modpath}
-install -m 744 emgd.ko $RPM_BUILD_ROOT%{modpath}
+install -m 744 drivers/emgd.ko $RPM_BUILD_ROOT%{modpath}
 install -m 755 -D %{SOURCE1} $RPM_BUILD_ROOT/usr/lib/systemd/system/
 install -m 755 -D %{SOURCE2} $RPM_BUILD_ROOT/usr/libexec/
 
