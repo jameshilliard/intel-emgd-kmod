@@ -37,6 +37,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}
 Source0: %{name}-%{version}.tar.gz
 BuildRequires: kernel-adaptation-intel-automotive-devel, kmod, rpm
 Requires: pciutils, kmod, kernel-adaptation-intel-automotive
+Requires(post): /bin/ln
 
 %description
 Intel EMGD kernel module for kernel
