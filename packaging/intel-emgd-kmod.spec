@@ -35,12 +35,15 @@ Vendor: Intel
 Group: System Environment/Kernel
 BuildRoot: %{_tmppath}/%{name}-%{version}
 Source0: %{name}-%{version}.tar.gz
-BuildRequires: kernel-adaptation-intel-automotive-devel, kmod
-Requires: pciutils, kmod
+BuildRequires: kernel-adaptation-intel-automotive-devel
+BuildRequires: kmod
+Requires: pciutils
+Requires: kmod
+Requires(post): /bin/ln
 %if %{kernel_number_str} != ""
 Requires: kernel-adaptation-intel-automotive = %{kernel_number}
 %else
-Requires: pciutils, kmod, kernel-adaptation-intel-automotive
+Requires: kernel-adaptation-intel-automotive
 %endif
 
 %description
