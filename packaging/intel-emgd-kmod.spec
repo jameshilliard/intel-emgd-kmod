@@ -48,6 +48,8 @@ Summary: Intel EMGD kernel module
 Group: System Environment/Kernel
 Requires: pciutils, kmod
 Requires: kernel-adaptation-intel-automotive = %{kernel_number}
+Provides: intel-emgd-kmod = %{kernel_number}
+
 
 %description %{kernel_number}
 Intel EMGD kernel module for kernel
