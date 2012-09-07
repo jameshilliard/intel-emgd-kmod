@@ -1,4 +1,7 @@
 * Mon Sep 10 2012 Artem Bityutskiy <artem.bityutskiy@linux.intel.com> - 2667
+- Assorted packaging improvements, no functional changes.
+
+* Mon Sep 10 2012 Artem Bityutskiy <artem.bityutskiy@linux.intel.com> - 2667
 - Make the internal layout saner - stop storing the systemd service
   int the packaging sub-directory - it is not the right place for it.
 
