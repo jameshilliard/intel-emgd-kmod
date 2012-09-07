@@ -73,7 +73,7 @@ typedef struct _emgd_drm_splash_video {
  * igd_param_t structure.
  */
 
-#define USER_CONFIG_NUM 3
+#define USER_CONFIG_NUM 5
 
 typedef struct _emgd_drm_config {
 	/**
