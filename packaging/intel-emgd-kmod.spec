@@ -32,8 +32,7 @@ Version: 2667
 Release: 1%{?dist}
 License: GPL v2
 Vendor: Intel
-Group: System Environment/Kernel
-BuildRoot: %{_tmppath}/%{name}-%{version}
+Group: System/Kernel
 Source0: %{name}-%{version}.tar.gz
 BuildRequires: kernel-adaptation-intel-automotive-devel
 BuildRequires: kmod
@@ -56,7 +55,6 @@ Intel EMGD kernel module for kernel
 make -C drivers %{?_smp_mflags}
 
 %install
-
 mkdir -p $RPM_BUILD_ROOT/usr/lib/systemd/system/
 mkdir -p $RPM_BUILD_ROOT/usr/libexec/
 install -m 755 -d $RPM_BUILD_ROOT%{modpath}
