@@ -1,0 +1,8 @@
+Change-Id: I9350043d393e454139f61dc1cb51001de12d123a
+Code-Review+2: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+Verified+1: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+Submitted-by: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+Submitted-at: Mon, 10 Sep 2012 15:55:01 +0900
+Reviewed-on: http://review.tizen.org/gerrit/1663
+Project: profile/ivi/intel-emgd-kmod
+Branch: refs/heads/master
