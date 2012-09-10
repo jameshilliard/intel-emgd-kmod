@@ -37,22 +37,16 @@ BuildRoot: %{_tmppath}/%{name}-%{version}
 Source0: %{name}-%{version}.tar.gz
 Source1: intel-emgd-kmod.service
 Source2: intel-emgd-kmod.init
-BuildRequires: kernel-adaptation-intel-automotive-devel, kmod, rpm
+BuildRequires: kernel-adaptation-intel-automotive-devel, kmod
+Requires: pciutils, kmod
+%if %{kernel_number_str} != ""
+Requires: kernel-adaptation-intel-automotive = %{kernel_number}
+%else
 Requires: pciutils, kmod, kernel-adaptation-intel-automotive
+%endif
 
 %description
 Intel EMGD kernel module for kernel
-
-%if %{kernel_number_str} != ""
-%package %{kernel_number}
-Summary: Intel EMGD kernel module
-Group: System Environment/Kernel
-Requires: pciutils, kmod
-Requires: kernel-adaptation-intel-automotive = %{kernel_number}
-
-%description %{kernel_number}
-Intel EMGD kernel module for kernel
-%endif
 
 %prep
 %setup -q
@@ -72,7 +66,7 @@ install -m 755 -D %{SOURCE2} $RPM_BUILD_ROOT/usr/libexec/
 %clean  
 rm -Rf $RPM_BUILD_ROOT
 
-%post %{kernel_number}
+%post
 ## create the dependency of kernel modules
 /sbin/depmod -av %{kernel_version} >/dev/null 2>&1 
 
@@ -86,19 +80,19 @@ if [ -x /bin/systemctl ]; then
     /bin/systemctl start intel-emgd-kmod.service > /dev/null 2>&1 || :
 fi
 
-%postun %{kernel_number}
+%postun
 /sbin/depmod -av %{kernel_version} >/dev/null 2>&1 
 rm -f /usr/lib/systemd/system/basic.target.wants/intel-emgd-kmod.service
 if [ -x /bin/systemctl ]; then
     systemctl daemon-reload >/dev/null 2>&1 || :
 fi
 
-%preun %{kernel_number}
+%preun
 if [ -x /bin/systemctl ]; then
     sytemctl stop intel-emgd-kmod.service >/dev/null 2>&1 || :
 fi
 
-%files %{kernel_number}
+%files
 %defattr(-,root,root,-)
 %{modpath}/emgd.ko
 %{_libdir}/systemd/system/intel-emgd-kmod.service
