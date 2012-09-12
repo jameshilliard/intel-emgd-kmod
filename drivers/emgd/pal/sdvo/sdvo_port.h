@@ -64,8 +64,8 @@ unsigned char sdvo_read_i2c_reg(sdvo_device_context_t *p_Ctx, unsigned char offs
 
 int sdvo_is_multi_display_device(sdvo_device_context_t *p_ctx);
 
-/*OKI Workaround*/
-#define	VENDOR_ID_OKI 0x81
+/*LAPIS Workaround*/
+#define	VENDOR_ID_LAPIS 0x81
 
 
 #endif  /*  _SDVO_PORT_H_ */

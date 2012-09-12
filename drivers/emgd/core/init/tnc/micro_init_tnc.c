@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: micro_init_tnc.c
- * $Revision: 1.26 $
+ * $Revision: 1.25.44.2 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -253,6 +253,7 @@ static void gtt_init_tnc(igd_context_t *context)
 	/* Get the page table control register */
 	pge_ctl = readl(mmio + PSB_PGETBL_CTL);
 	gtt_phys_start = pge_ctl & PAGE_MASK;
+	context->device_context.valid_firmware_init = (pge_ctl != 0);
 
 	/* Create a scratch page to initialize empty GTT entries */
 	if(NULL == context->device_context.scratch_page){
@@ -287,14 +288,14 @@ static void gtt_init_tnc(igd_context_t *context)
 		context->device_context.virt_gttadr = gtt_table;
 
 		for (i=0; i < (1 << gtt_order); i++) {
-			gtt_table_page = virt_to_page(gtt_table + (PAGE_SIZE * i));
+			gtt_table_page = virt_to_page(((unsigned char *)gtt_table) + (PAGE_SIZE * i));
 			EMGD_DEBUG("Setting reserved bit on %p", gtt_table_page);
 			set_bit(PG_reserved, &gtt_table_page->flags);
 		}
 
 		gtt_phys_start = virt_to_phys(gtt_table);
 
-		for (i = 0; i < gtt_pages; i++) {
+		for (i = 0; i < gtt_pages * 1024; i++) {
 			gtt_table[i] = (unsigned long)context->device_context.scratch_page;
 		}
 
@@ -738,8 +739,7 @@ static int config_tnc(igd_context_t *context,
 #endif
 
 	gtt_init_tnc(context);
-
-       /*
+	/*
 	 * Setting the LBB to 0xFF if it is 0.
 	 * This register is used to dynamic LVDS backlight control. By default,
 	 * the register will reset to 0x0, this will cause the LVDS to be "off" when
@@ -750,19 +750,17 @@ static int config_tnc(igd_context_t *context,
 	 * then set the register through pd. But this will add more code to VBIOS
 	 * (as we need to add dispatch functions in pd)
 	 */
-
 	if(OS_PCI_READ_CONFIG_32(platform_context->pcidev0, 0xF4, &lbb)) {
-		EMGD_DEBUG("Reading Legacy Backlight Brightness");
-		return -IGD_ERROR_NODEV;
-	}
+                   EMGD_ERROR_EXIT("Reading Legacy Backlight Brightness");
+                   return -IGD_ERROR_NODEV;
+    }
 	if(!(lbb & 0xFF)){
-		if(OS_PCI_WRITE_CONFIG_32(platform_context->pcidev0,
-			0xF4, (lbb | 0xFF))){
-			EMGD_DEBUG("Writing into Legacy Backlight Brightness");
-			return -IGD_ERROR_INVAL;
-		}
+                   if(OS_PCI_WRITE_CONFIG_32(platform_context->pcidev0,
+                           0xF4, (lbb | 0xFF))){
+                           EMGD_ERROR_EXIT("Writing into Legacy Backlight Brightness");
+                           return -IGD_ERROR_INVAL;
+                   }
 	}
-
 
 	EMGD_TRACE_EXIT;
 	return 0;
@@ -979,6 +977,20 @@ static int dump_fuse_values(void)
 static void shutdown_tnc(igd_context_t *context)
 {
 	gtt_shutdown_tnc(context);
+
+	/* If firmware didn't initialize the hardware, free the memory
+	 * we allocated to do that and restore the state */
+	if(!context->device_context.valid_firmware_init) {
+		int gtt_pages;
+		unsigned char *mmio = context->device_context.virt_mmadr;
+
+		printk(KERN_INFO "Freeing allocated GTT and clearing PSB_PGETBL_CTL to restore firmware state\n");
+
+		gtt_pages = pci_resource_len(((struct drm_device *)context->drm_dev)->pdev,
+					     PSB_GTT_RESOURCE) >> PAGE_SHIFT;
+		free_pages((unsigned long)context->device_context.virt_gttadr, gtt_pages);
+		writel(0, mmio + PSB_PGETBL_CTL);
+	}
 
 	OPT_MICRO_VOID_CALL(full_shutdown_tnc(context));
 }

@@ -87,6 +87,7 @@ DEFINE_SPINLOCK(vblank_lock_plb);
 int set_flip_pending_plb(unsigned char *mmio, unsigned long pipe_status_reg);
 int check_flip_pending_plb(unsigned char *mmio, unsigned long pipe_status_reg);
 
+unsigned long get_port_control_plb(unsigned long port_num, unsigned long port_reg);
 /*!
  * @addtogroup display_group
  * @{
@@ -1917,6 +1918,21 @@ void disable_vblank_callback_plb(emgd_vblank_callback_h callback_h)
 	EMGD_TRACE_EXIT;
 }
 
+/*!
+ *  checks if the port is enabled
+ */
+unsigned long get_port_control_plb(unsigned long port_num, unsigned long port_reg)
+{
+	unsigned long port_value=0;
+	unsigned char* mmio = NULL;
+
+	EMGD_TRACE_ENTER;
+	mmio = EMGD_MMIO(mode_context->context->device_context.virt_mmadr);
+	port_value = EMGD_READ32(mmio+port_reg);
+
+	EMGD_TRACE_EXIT;
+	return port_value;
+}
 
 mode_full_dispatch_t mode_full_dispatch_plb = {
 	igd_alter_cursor_pos_plb,
@@ -1942,5 +1958,6 @@ mode_full_dispatch_t mode_full_dispatch_plb = {
 	request_vblanks_plb,
 	end_request_plb,
 	vblank_occured_plb,
+	get_port_control_plb,
 };
 

@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: mode_tnc.c
- * $Revision: 1.36 $
+ * $Revision: 1.35.12.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -59,7 +59,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <drm/drmP.h>
-
+#include <emgd_drm.h>
 
 /* Get this table from clocks_tnc.c, use this in get_pipe_info */
 extern unsigned long lvds_m_converts[];
@@ -96,6 +96,7 @@ DEFINE_SPINLOCK(vblank_lock_tnc);
 
 int set_flip_pending_tnc(unsigned char *mmio, unsigned long pipe_status_reg);
 int check_flip_pending_tnc(unsigned char *mmio, unsigned long pipe_status_reg);
+unsigned long get_port_control_tnc(unsigned long port_num, unsigned long port_reg);
 
 /* KMS callback from emgd_crtc.c */
 int crtc_pageflip_handler(struct drm_device *dev, int port);
@@ -382,6 +383,8 @@ static int set_color_correct_tnc(igd_display_context_t *display)
 static int set_display_base_tnc(igd_display_context_t *display,
 	igd_framebuffer_info_t *fb, unsigned long *x, unsigned long *y)
 {
+	unsigned long reg;
+	unsigned long temp;
 	EMGD_TRACE_ENTER;
 
 	EMGD_DEBUG ("Pan linear to (%lu,%lu)", *x, *y);
@@ -390,10 +393,21 @@ static int set_display_base_tnc(igd_display_context_t *display,
 	PLANE(display)->fb_info->visible_offset =
 		((*y * fb->screen_pitch) + (*x * IGD_PF_BYPP(fb->pixel_format)));
 
-	/* Plane registers are always on 0:2:0 */
-	WRITE_MMIO_REG(display, PLANE(display)->plane_reg + DSP_LINEAR_OFFSET,
-		PLANE(display)->fb_info->visible_offset);
+	temp = PLANE(display)->fb_info->visible_offset;
+	EMGD_DEBUG ("visible offset = %lx",temp );
+	if(PLANE(display)->fb_info->lock) {
 
+		EMGD_DEBUG ("Plane is locked");
+		reg = (unsigned long)READ_MMIO_REG(display, PLANE(display)->plane_reg- 4);
+		EMGD_DEBUG("Plane B start addr = %lx", reg);
+		reg = (unsigned long)READ_MMIO_REG(display,PLANE(display)->plane_reg + 4);
+		EMGD_DEBUG("Plane B start offset = %lx", reg);
+
+	} else {
+		/* Plane registers are always on 0:2:0 */
+		WRITE_MMIO_REG(display, PLANE(display)->plane_reg + DSP_LINEAR_OFFSET,
+				PLANE(display)->fb_info->visible_offset);
+	}
 	EMGD_TRACE_EXIT;
 	return 0;
 }
@@ -887,13 +901,15 @@ static int igd_set_surface_tnc(igd_display_h display_handle,
 		 *     1) the plane_reg - 4  if async
 		 *     2) plane_reg + DSP_START_OFFSET (+0x1C) if not async
 		 */
-		EMGD_WRITE32(plane_control, MMIO(display) + plane_reg);
-		EMGD_WRITE32(surface->pitch,
-				MMIO(display) + plane_reg + DSP_STRIDE_OFFSET);
-		EMGD_WRITE32(visible_offset,
-			MMIO(display) + plane_reg + DSP_LINEAR_OFFSET);
-		EMGD_WRITE32(surface->offset,
-			MMIO(display) + plane_reg + DSP_START_OFFSET);
+		if(!PLANE(display)->fb_info->lock){
+			EMGD_WRITE32(plane_control, MMIO(display) + plane_reg);
+			EMGD_WRITE32(surface->pitch,
+					MMIO(display) + plane_reg + DSP_STRIDE_OFFSET);
+			EMGD_WRITE32(visible_offset,
+				MMIO(display) + plane_reg + DSP_LINEAR_OFFSET);
+			EMGD_WRITE32(surface->offset,
+				MMIO(display) + plane_reg + DSP_START_OFFSET);
+		}
 
 		EMGD_TRACE_EXIT;
 		return 0;
@@ -1057,6 +1073,21 @@ static int get_plane_info_tnc(void)
 		/* Following are NOT offset by 1 in fb info */
 		buffer_info[0].width++;
 		buffer_info[0].height++;
+		if((plane_control & (BIT27 | BIT30)) == (BIT27 | BIT30)){
+			buffer_info[0].pixel_format = PF_DEPTH_8;
+		}
+		if((plane_control & (BIT28 | BIT26)) == (BIT28 | BIT26)){
+			buffer_info[0].pixel_format = PF_DEPTH_16;
+		}
+		if((plane_control & (BIT28 | BIT27)) == (BIT28 | BIT27)){
+			buffer_info[0].pixel_format = PF_DEPTH_32;
+		}
+
+		EMGD_DEBUG("Plane A info height==%d, width=%d, pitch=%d", buffer_info[0].height, buffer_info[0].width, buffer_info[0].screen_pitch);
+		reg = (unsigned long)EMGD_READ32(mmio + DSPACNTR - 4);
+		EMGD_DEBUG("Plane A start addr = %lx", reg);
+		reg = (unsigned long)EMGD_READ32(mmio + DSPACNTR + 4);
+		EMGD_DEBUG("Plane A start offset = %lx", reg);
 	}
 
 	/* Check that plane B is active and process it */
@@ -1076,7 +1107,23 @@ static int get_plane_info_tnc(void)
 		/* Following are NOT offset by 1 in fb info */
 		buffer_info[1].width++;
 		buffer_info[1].height++;
-	}
+
+		if((plane_control & (BIT27 | BIT30)) == (BIT27 | BIT30)){
+			buffer_info[1].pixel_format = PF_DEPTH_8;
+		}
+		if((plane_control & (BIT28 | BIT26)) == (BIT28 | BIT26)){
+			buffer_info[1].pixel_format = PF_DEPTH_16;
+		}
+		if((plane_control & (BIT28 | BIT27)) == (BIT28 | BIT27)){
+			buffer_info[1].pixel_format = PF_DEPTH_32;
+		}
+
+		EMGD_DEBUG("Plane B info height==%d, width=%d, pitch=%d", buffer_info[1].height, buffer_info[1].width, buffer_info[1].screen_pitch);
+		reg = (unsigned long)EMGD_READ32(mmio + DSPBCNTR - 4);
+		EMGD_DEBUG("Plane B start addr = %lx", reg);
+		reg = (unsigned long)EMGD_READ32(mmio + DSPBCNTR + 4);
+		EMGD_DEBUG("Plane B start offset = %lx", reg);
+}
 
 	EMGD_TRACE_EXIT;
 	return 0;
@@ -1284,32 +1331,32 @@ static int get_pipe_info_tnc(igd_display_h *display)
 	/* For 2nd display pipe, pipe b registers in both 0:2:0 and 0:3:0
 	 * supposed to be programmed to same values. So these values can be
 	 * read from either devices */
-	pipe_conf = EMGD_READ32(mmio_sdvo + PIPEB_CONF);
+	pipe_conf = READ_MMIO_REG_TNC(IGD_PORT_SDVO, PIPEB_CONF);
 
 	if(pipe_conf & BIT(31)) { /* pipe B is active */
 		timing = &mode_context->fw_info->timing_arr[0];
 
-		reg = EMGD_READ32(mmio_sdvo + HTOTAL_B);
+		reg = READ_MMIO_REG_TNC(IGD_PORT_SDVO, HTOTAL_B);
 		timing[1].htotal = (unsigned short)(reg >> 16) & 0x1FFF;
 		timing[1].width = (unsigned short)reg & 0xFFF;
 
-		reg = EMGD_READ32(mmio + HBLANK_B);
+		reg = READ_MMIO_REG_TNC(IGD_PORT_SDVO, HBLANK_B);
 		timing[1].hblank_start = (unsigned short)reg & 0x1FFF;
 		timing[1].hblank_end = (unsigned short)(reg >> 16) & 0x1FFF;
 
-		reg = EMGD_READ32(mmio + HSYNC_B);
+		reg = READ_MMIO_REG_TNC(IGD_PORT_SDVO, HSYNC_B);
 		timing[1].hsync_start = (unsigned short)reg & 0x1FFF;
 		timing[1].hsync_end = (unsigned short)(reg >> 16) & 0x1FFF;
 
-		reg = EMGD_READ32(mmio + VTOTAL_B);
+		reg = READ_MMIO_REG_TNC(IGD_PORT_SDVO, VTOTAL_B);
 		timing[1].vtotal = (unsigned short)(reg >> 16) & 0x1FFF;
 		timing[1].height = (unsigned short)reg & 0xFFF;
 
-		reg = EMGD_READ32(mmio + VBLANK_B);
+		reg = READ_MMIO_REG_TNC(IGD_PORT_SDVO, VBLANK_B);
 		timing[1].vblank_start = (unsigned short)reg & 0x1FFF;
 		timing[1].vblank_end = (unsigned short)(reg >> 16) & 0x1FFF;
 
-		EMGD_READ32(mmio + VSYNC_B);
+		READ_MMIO_REG_TNC(IGD_PORT_SDVO, VSYNC_B);
 		timing[1].vsync_start = (unsigned short)reg & 0x1FFF;
 		timing[1].vsync_end = (unsigned short)(reg >> 16) & 0x1FFF;
 
@@ -1322,20 +1369,21 @@ static int get_pipe_info_tnc(igd_display_h *display)
 			unsigned long dpllb, fpb0, fpb1;
 			unsigned long mb1, mb2, nb, pb1, pb2, pllb_select;
 			unsigned long ref_freq = 0, dclk;
+			unsigned long port_mult = 1;
 			unsigned long temp; /* To store intermediate values b4 dclk */
 			int j;
 
-			dpllb = EMGD_READ32(mmio_sdvo + DPLLBCNTR);
-			fpb0  = EMGD_READ32(mmio_sdvo + FPB0);
-			fpb1  = EMGD_READ32(mmio_sdvo + FPB1);
+			dpllb = READ_MMIO_REG_TNC(IGD_PORT_SDVO, DPLLBCNTR);
+			fpb0  = READ_MMIO_REG_TNC(IGD_PORT_SDVO, FPB0);
+			fpb1  = READ_MMIO_REG_TNC(IGD_PORT_SDVO, FPB1);
 
 			if(dpllb & BIT(31)) {
 
 				mb1 = (fpb0 >> 8) & 0x3F;    /* M1 is bits 13:8 */
-				mb2 = (fpb0) & 0x1F;         /* M1 is bits 5:0 */
-				nb = (fpb0 >> 16) & 0x3F;    /* N is bits 21:16 */
+				mb2 = (fpb0) & 0xFF;         /* M1 is bits 7:0 */
+				nb = (fpb0 >> 16) & 0xFF;    /* N is bits 23:16 */
 				pb1 = (dpllb >> 16) & 0xFF; /* P1 is bits 23:16 */
-
+				port_mult = (((dpllb >> 4) & 0x0F) + 1);
 				/* Check for illegal values of P1
 				 * The bit representation MUST be power of 2
 				 * All other values are illegal including zero.
@@ -1346,9 +1394,16 @@ static int get_pipe_info_tnc(igd_display_h *display)
 					return -IGD_ERROR_INVAL;
 				}
 
+                /* 0000001 = Divide by two (default value); 0000010 = Divide by three and so on*/
 				for(j = 0; j < 8; j++) {
 					if(pb1 & BIT(j)) {  /* P1 is divide by 1 to 8 */
 						pb1 = j+1;
+						break;					}
+				}
+
+				for(j = 0; j < 8; j++) {
+					if(nb & BIT(j)) {
+						nb = j+1;
 						break;
 					}
 				}
@@ -1399,11 +1454,11 @@ static int get_pipe_info_tnc(igd_display_h *display)
 				 * integer division
 				 */
 				temp = 1000 * 1000;
-				temp = temp * (5 * (mb1+2) + (mb2+2));
-				temp = temp /(nb+2);
-				dclk = temp/(pb1*pb2);
-
-				dclk = temp * ref_freq;
+				temp = temp * (mb2+2);
+                temp = temp / nb;
+				temp = temp/(pb1*pb2);
+                dclk = temp * ref_freq;
+                dclk = dclk / port_mult;
 
 				if( (dclk == 0) || (ref_freq == 0) ) {
 					EMGD_ERROR_EXIT("Dot Clock/Ref Frequency is Zero!!!");
@@ -2045,6 +2100,95 @@ void disable_vblank_callback_tnc(emgd_vblank_callback_h callback_h)
 	EMGD_TRACE_EXIT;
 }
 
+/*!
+ *  checks if the port is enabled
+ */
+unsigned long get_port_control_tnc(unsigned long port_num, unsigned long port_reg)
+{
+	unsigned long port_value=0;
+
+	EMGD_TRACE_ENTER;
+	if( port_num == IGD_PORT_TYPE_SDVOB) {
+		port_value = READ_MMIO_REG_TNC(IGD_PORT_SDVO,port_reg);
+	} else {
+		port_value = READ_MMIO_REG_TNC(IGD_PORT_LVDS,port_reg);
+	}
+
+	EMGD_TRACE_EXIT;
+	return port_value;
+}
+
+
+/*!
+ * locks the plane
+ * set_surface() and set_display_base_tnc() will not update the registers
+ * when the planes are locked.
+ */
+void lock_planes(igd_display_h display_handle)
+{
+	igd_display_context_t *display = (igd_display_context_t *)display_handle;
+
+	EMGD_TRACE_ENTER;
+	if(!display){
+		EMGD_ERROR_EXIT("Display is NULL");
+		return;
+	}
+	PLANE(display)->fb_info->lock = TRUE;
+	EMGD_TRACE_EXIT;
+}
+
+
+/*!
+ * unlocks the plane
+ * resets the lock flag and writes to plane registers
+ *
+ */
+int unlock_planes(igd_display_h display_handle, unsigned int scrn_num)
+{
+	igd_display_context_t *display = (igd_display_context_t *)display_handle;
+	unsigned long plane_reg;
+	unsigned long plane_control;
+	unsigned long visible_offset;
+
+	EMGD_TRACE_ENTER;
+	if(!display){
+		EMGD_ERROR_EXIT("Display is NULL");
+		return FALSE;
+	}
+
+	/* plane registers are always on 0:2:0, so no need to use _TNC macros */
+	plane_reg = PLANE(display)->plane_reg;
+	plane_control = EMGD_READ32(MMIO(display) + plane_reg);
+
+	/*
+	 *   Write the current plane_control value to the plane_reg
+	 *   Write the surface stride to DSP_STRIDE_OFFSET
+	 *   Write the visible from start of plane to DSP_LINEAR_OFFSET
+	 *   Write the base surface offset to either:
+	 */
+	PLANE(display)->fb_info->lock = FALSE;
+
+	if(scrn_num == PRIMARY_DISPLAY){
+		visible_offset = 0;
+	}else {
+		visible_offset = PLANE(display)->fb_info->visible_offset;
+	}
+
+	EMGD_DEBUG("visible offset= %lx", visible_offset);
+
+	EMGD_WRITE32(plane_control, MMIO(display) + plane_reg);
+	EMGD_WRITE32(PLANE(display)->fb_info->screen_pitch,
+			MMIO(display) + plane_reg + DSP_STRIDE_OFFSET);
+	EMGD_WRITE32(visible_offset,
+			MMIO(display) + plane_reg + DSP_LINEAR_OFFSET);
+	EMGD_WRITE32(PLANE(display)->fb_info->fb_base_offset,
+			MMIO(display) + plane_reg + DSP_START_OFFSET);
+	EMGD_TRACE_EXIT;
+	return TRUE;
+}
+
+
+
 
 mode_full_dispatch_t mode_full_dispatch_tnc = {
 	igd_alter_cursor_pos_tnc,
@@ -2070,5 +2214,8 @@ mode_full_dispatch_t mode_full_dispatch_tnc = {
 	request_vblanks_tnc,
 	end_request_tnc,
 	vblank_occured_tnc,
+	get_port_control_tnc,
+	lock_planes,
+	unlock_planes,
 };
 

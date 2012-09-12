@@ -459,6 +459,9 @@ int pi_pd_register(pd_driver_t *pd_driver)
 		/*	SDVO port driver needs the port number */
 		port->callback->port_num = port->port_number;
 
+        /*  SDVO port driver should not reset for seamless mode */
+        port->callback->reset = (init_params->qb_seamless == 1) ? 0 : 1;
+
 		/* now save the pd_driver in port entry */
 		port->pd_driver = pd_driver;
 

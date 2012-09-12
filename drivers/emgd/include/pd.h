@@ -372,6 +372,7 @@ typedef struct _pd_callback {
 	pd_write_regs_p write_regs;
 	unsigned long port_num;			/*	Added for SDVO port driver */
 	cea_extension_t	**eld;			/* EDID like Data */
+	unsigned char reset;
 }pd_callback_t;
 
 /* IMP NOTE: All below structures should be with same size.

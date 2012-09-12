@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: msvdx_init.c
- * $Revision: 1.32 $
+ * $Revision: 1.31 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -262,6 +262,8 @@ unsigned long LastClockState;
 #define MSVDX_CORE_CR_BE_MSVDX_WDT_COMPAREMATCH_BE_WDT_CM0_SHIFT		(0)
 /*watch dog end*/
 
+#define MAX_FW_SIZE 16 * 1024
+
 enum {
 	MSVDX_DMAC_BSWAP_NO_SWAP = 0x0, /* No byte swapping will be performed */
 	MSVDX_DMAC_BSWAP_REVERSE = 0x1, /* Byte order will be reversed */
@@ -377,6 +379,24 @@ static int msvdx_map_fw(uint32_t size)
 
 	/* Round up as DMA's can overrun a page */
 	alloc_size = (size + 8192) & ~0x0fff;
+
+	/* Verify there is enough memory for the firmware text */
+	if( ((priv_fw->fw_text_size * 4) <= 0) ||
+		((priv_fw->fw_text_size * 4) > size) ) {
+		return -EINVAL;
+	}
+
+	if( ((priv_fw->fw_data_location - MTX_DATA_BASE) <=0) ||
+		((priv_fw->fw_data_location - MTX_DATA_BASE) > size) ) {
+		return -EINVAL;
+	}
+
+	/* Verify there is enough memory for the firmware data */
+	if( ((priv_fw->fw_data_size * 4) <= 0) ||
+		((priv_fw->fw_data_size * 4) > (size -
+				(priv_fw->fw_data_location - MTX_DATA_BASE))) ) {
+		return -EINVAL;
+	}
 
 	mem_info = platform->msvdx_pvr->fw_mem_info;
 	if (!mem_info) {
@@ -543,7 +563,7 @@ static int msvdx_upload_fw_dma(uint32_t address)
 		return -ENODEV;
 	}
 
-        count_reg = MSVDX_DMAC_VALUE_COUNT(MSVDX_DMAC_BSWAP_NO_SWAP,
+	count_reg = MSVDX_DMAC_VALUE_COUNT(MSVDX_DMAC_BSWAP_NO_SWAP,
 					0,  /* 32 bits */
 					MSVDX_DMAC_DIR_MEM_TO_PERIPH,
 					0,
@@ -621,7 +641,6 @@ static int msvdx_upload_fw(void)
 	/*
 	 * Get the ram bank size
 	 * The banks size seems to be a 4 bit value in the MTX debug register.
-	 * Where this is documented other than the UMG code is not clear.
 	 */
 	ram_bank = EMGD_READ32(mmio + PSB_MSVDX_MTX_RAM_BANK);
 	bank_size = (ram_bank & 0x000f0000) >> 16;
@@ -821,14 +840,15 @@ int msvdx_init_plb(unsigned long base0, unsigned long base1,
 
     // return back if firmware is already loaded
     if (init_msvdx_first_time) {
-	spin_lock_init(&platform->msvdx_init_plb);
+		spin_lock_init(&platform->msvdx_init_plb);
     } else if(!reset_flag){
-	if (context_count == 0) {
-		spin_lock_irqsave(&platform->msvdx_lock, irq_flags);
-		INIT_LIST_HEAD(&platform->msvdx_queue);  // empty the list.
-		spin_unlock_irqrestore(&platform->msvdx_lock, irq_flags);
-	}
-	return ret;
+		if (context_count == 0) {
+			spin_lock_irqsave(&platform->msvdx_lock, irq_flags);
+			INIT_LIST_HEAD(&platform->msvdx_queue);  // empty the list.
+			spin_unlock_irqrestore(&platform->msvdx_lock, irq_flags);
+		}
+
+		return ret;
     }
 
     // Set the status for firmware loading
@@ -848,7 +868,31 @@ int msvdx_init_plb(unsigned long base0, unsigned long base1,
 
 	if (!priv_fw && msvdx_fw) {
 		fw = (msvdx_fw_t *) msvdx_fw;
+
+		if((fw->fw_version_size <= 0) || (fw->fw_version_size > 64 )) {
+			ret = 1;
+			goto cleanup;
+		}
+
+		fw_size = sizeof(unsigned long) * fw->fw_text_size;
+		if((fw_size == 0) || (fw_size > MAX_FW_SIZE)) {
+			ret = 1;
+			goto cleanup;
+		}
+
+		fw_size = sizeof(unsigned long) * fw->fw_data_size;
+		if((fw_size == 0) || (fw_size > MAX_FW_SIZE)) {
+			ret = 1;
+			goto cleanup;
+		}
+
 		priv_fw = kzalloc(sizeof(msvdx_fw_t), GFP_KERNEL);
+		if (priv_fw == NULL) {
+			printk(KERN_ERR "MSVDX: Out of memory\n");
+			ret = -ENOMEM;
+			goto cleanup;
+		}
+
 		priv_fw->fw_text_size = fw->fw_text_size;
 		priv_fw->fw_data_size = fw->fw_data_size;
 		priv_fw->fw_version_size = fw->fw_version_size;
@@ -856,21 +900,50 @@ int msvdx_init_plb(unsigned long base0, unsigned long base1,
 
 		fw_size = sizeof(unsigned long) * fw->fw_text_size;
 		priv_fw->fw_text = kmalloc(fw_size, GFP_KERNEL);
+		if (priv_fw->fw_text == NULL) {
+			kfree (priv_fw);
+			priv_fw = NULL;
+			printk(KERN_ERR "MSVDX: Out of memory\n");
+			ret = -ENOMEM;
+			goto cleanup;
+		}
 		memcpy(priv_fw->fw_text, (void *) ((unsigned long) msvdx_fw) +
 				((unsigned long) fw->fw_text), fw_size);
 
 		fw_size = sizeof(unsigned long) * fw->fw_data_size;
 		priv_fw->fw_data = kmalloc(fw_size, GFP_KERNEL);
+		if (priv_fw->fw_data == NULL) {
+			kfree (priv_fw->fw_text);
+			priv_fw->fw_text = NULL;
+			kfree (priv_fw);
+			priv_fw = NULL;
+			printk(KERN_ERR "MSVDX: Out of memory\n");
+			ret = -ENOMEM;
+			goto cleanup;
+		}
 		memcpy(priv_fw->fw_data, (void *) ((unsigned long) msvdx_fw) +
 			((unsigned long) fw->fw_data), fw_size);
 
 		priv_fw->fw_version = kzalloc(priv_fw->fw_version_size, GFP_KERNEL);
-		strcpy(priv_fw->fw_version, (char *) (((unsigned long) msvdx_fw) +
-			((unsigned long) fw->fw_version)));
+		if (priv_fw->fw_version == NULL) {
+			kfree (priv_fw->fw_text);
+			kfree (priv_fw->fw_data);
+			priv_fw->fw_text = NULL;
+			priv_fw->fw_data = NULL;
+			kfree(priv_fw);
+			priv_fw = NULL;
+			printk(KERN_ERR "MSVDX: Out of memory\n");
+			ret = -ENOMEM;
+			goto cleanup;
+		}
+
+		strncpy(priv_fw->fw_version, (char *) (((unsigned long) msvdx_fw) +
+			((unsigned long) fw->fw_version)), priv_fw->fw_version_size);
+
 	} else if (!priv_fw) {
 		printk(KERN_INFO "Kernel firmware is not loaded");
 		if(init_msvdx_first_time) {
-			printk(KERN_ERR "ALAN!!! !priv_fw at msvdx init 1st");
+			printk(KERN_ERR "!priv_fw at msvdx init 1st");
 		}
 		ret = 1;
 		goto cleanup;
@@ -935,7 +1008,7 @@ int msvdx_init_plb(unsigned long base0, unsigned long base1,
     REGIO_WRITE_FIELD(reg_val, MSVDX_CORE_CR_FE_MSVDX_WDT_CONTROL, FE_WDT_ACTION0, 1);
     REGIO_WRITE_FIELD(reg_val, MSVDX_CORE_CR_FE_MSVDX_WDT_CONTROL, FE_WDT_CLEAR_SELECT, 1);
     REGIO_WRITE_FIELD(reg_val, MSVDX_CORE_CR_FE_MSVDX_WDT_CONTROL, FE_WDT_CLKDIV_SELECT, 7);
-    printk(KERN_INFO "CTL_MSG: WDT Control value = 0x%x", reg_val);
+    printk(KERN_INFO "CTL_MSG: WDT Control value = 0x%lx", reg_val);
     EMGD_WRITE32(0, mmio + MSVDX_CORE_CR_FE_MSVDX_WDT_COMPAREMATCH_OFFSET);
     EMGD_WRITE32(reg_val, mmio + MSVDX_CORE_CR_FE_MSVDX_WDT_CONTROL_OFFSET);
 
@@ -945,7 +1018,7 @@ int msvdx_init_plb(unsigned long base0, unsigned long base1,
     REGIO_WRITE_FIELD(reg_val, MSVDX_CORE_CR_BE_MSVDX_WDT_CONTROL, BE_WDT_ACTION0, 1);
     REGIO_WRITE_FIELD(reg_val, MSVDX_CORE_CR_BE_MSVDX_WDT_CONTROL, BE_WDT_CLEAR_SELECT, 0xd);
     REGIO_WRITE_FIELD(reg_val, MSVDX_CORE_CR_BE_MSVDX_WDT_CONTROL, BE_WDT_CLKDIV_SELECT, 7);
-    printk(KERN_INFO "CTL_MSG: WDT Control value = 0x%x", reg_val);
+    printk(KERN_INFO "CTL_MSG: WDT Control value = 0x%lx", reg_val);
     EMGD_WRITE32(0, mmio + MSVDX_CORE_CR_BE_MSVDX_WDT_COMPAREMATCH_OFFSET);
     EMGD_WRITE32(reg_val, mmio + MSVDX_CORE_CR_BE_MSVDX_WDT_CONTROL_OFFSET);
 
@@ -1256,6 +1329,10 @@ int msvdx_create_context(igd_context_t *context, void * drm_file_priv, unsigned 
 	int i = 0, ret = 0;
 	EMGD_TRACE_ENTER;
 
+	if(!drm_file_priv) {
+		return -EINVAL;
+	}
+
 	for (i = 0; i <  MSVDX_MAXIMUM_CONTEXT; ++i) {
 		if (msvdx_contexts[i].drm_file_priv == NULL) {
 			msvdx_contexts[i].drm_file_priv = drm_file_priv;
@@ -1294,27 +1371,36 @@ void msvdx_postclose_check(igd_context_t *context, void *drm_file_priv)
 int process_video_decode_plb(igd_context_t *context, unsigned long offset, void *virt_addr, unsigned long *fence_id)
 {
 	unsigned long *mtx_buf;
-    unsigned long *mtx_msgs;
-    unsigned long mtx_offset;
-    unsigned long mtx_msg_cnt;
-    unsigned long irq_flags;
+	unsigned long *mtx_msgs;
+	unsigned long mtx_offset;
+	unsigned long mtx_msg_cnt;
+	unsigned long irq_flags;
 	int ret = 0;
     platform_context_plb_t *platform;
     EMGD_TRACE_ENTER;
 
+	if(!virt_addr || !fence_id) {
+		printk(KERN_ERR "Invalid message");
+		return -EINVAL;
+	}
 
-    platform = (platform_context_plb_t *)context->platform_context;
+	platform = (platform_context_plb_t *)context->platform_context;
 
 	mtx_buf = (unsigned long *) virt_addr;
-    mtx_offset = mtx_buf[0];
-    mtx_msg_cnt = mtx_buf[1];
+	mtx_offset = mtx_buf[0];
+	mtx_msg_cnt = mtx_buf[1];
 
-    if (mtx_msg_cnt > 0x20) {
-        printk(KERN_ERR "Message count too big at %ld\n", mtx_msg_cnt);
-        return -EINVAL;
-    }
+	if (mtx_msg_cnt > 0x20) {
+		printk(KERN_ERR "Message count too big at %ld\n", mtx_msg_cnt);
+		return -EINVAL;
+	}
 
-    mtx_msgs = mtx_buf + (mtx_offset / sizeof (unsigned long));
+	mtx_msgs = mtx_buf + (mtx_offset / sizeof (unsigned long));
+	if(!mtx_msgs) {
+		printk(KERN_ERR "Invalid message");
+		return -EINVAL;
+	}
+
 	if (mtx_msg_cnt > 0) {
 	//if ((mtx_buf[0] != 0x8) || (mtx_buf[2] != 0x8504)) {
 
@@ -1324,7 +1410,6 @@ int process_video_decode_plb(igd_context_t *context, unsigned long offset, void 
 
 			platform->msvdx_busy = 1;
 			spin_unlock_irqrestore(&platform->msvdx_lock, irq_flags);
-
 
 			if (platform->msvdx_needs_reset) {
 				msvdx_reset_plb(context);
@@ -1338,11 +1423,9 @@ int process_video_decode_plb(igd_context_t *context, unsigned long offset, void 
 
 			if (ret) {
 				ret = -EINVAL;
-
 			}
 		} else {
 			struct msvdx_cmd_queue *msvdx_cmd;
-
 			spin_unlock_irqrestore(&platform->msvdx_lock, irq_flags);
 
 			msvdx_cmd = kzalloc(sizeof(struct msvdx_cmd_queue), GFP_KERNEL);
@@ -1359,9 +1442,9 @@ int process_video_decode_plb(igd_context_t *context, unsigned long offset, void 
 			 * and needing to be reset.
 			 */
 			if ((jiffies_at_last_dequeue != 0) &&
-				((jiffies - jiffies_at_last_dequeue) > 1000)) {
+					((jiffies - jiffies_at_last_dequeue) > 1000)) {
 				printk(KERN_ERR "Video decode hardware appears to be hung; "
-					"resetting\n");
+						"resetting\n");
 				platform->msvdx_needs_reset = 1;
 			}
 			if (platform->msvdx_needs_reset) {
@@ -1396,6 +1479,10 @@ int msvdx_get_fence_id(igd_context_t *context, unsigned long *fence_id)
 {
 	int ret = 0;
     platform_context_plb_t *platform;
+
+    if(!fence_id) {
+	return -EINVAL;
+    }
 
     platform = (platform_context_plb_t *)context->platform_context;
 

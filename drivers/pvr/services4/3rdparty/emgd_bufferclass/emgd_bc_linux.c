@@ -44,7 +44,7 @@
 #include "io.h"
 #include "pvrmodule.h"
 #include "emgd_drm.h"
-
+#include "igd_gmm.h"
 #include "emgd_bc.h"
 #if 0
 #define DEVNAME    "bc_video"
@@ -57,6 +57,9 @@
 #define BC_PIX_FMT_UYVY     BC_FOURCC('U', 'Y', 'V', 'Y')    /*YUV 4:2:2 */
 #define BC_PIX_FMT_YUYV     BC_FOURCC('Y', 'U', 'Y', 'V')    /*YUV 4:2:2 */
 #define BC_PIX_FMT_RGB565   BC_FOURCC('R', 'G', 'B', 'P')    /*RGB 5:6:5 */
+#define BC_PIX_FMT_ARGB   BC_FOURCC('A','R', 'G', 'B')    /*ARGB*/
+#define BC_PIX_FMT_xRGB   BC_FOURCC('x','R', 'G', 'B')    /*xRGB*/
+#define BC_PIX_FMT_RGB4	BC_FOURCC('R', 'G', 'B', '4') /*RGB4*/
 #if 0
 #if defined(BCE_USE_SET_MEMORY)
 #undef BCE_USE_SET_MEMORY
@@ -340,6 +343,9 @@ BCE_ERROR BCAllocContigMemory (unsigned long ulSize,
     int iError;
 
     pvLinAddr = kmalloc(ulAlignedSize, GFP_KERNEL);
+    if(!pvLinAddr) {
+        return (BCE_ERROR_OUT_OF_MEMORY);
+    }
     BUG_ON (((unsigned long) pvLinAddr) & ~PAGE_MASK);
 
     iError = set_memory_wc((unsigned long) pvLinAddr, iPages);
@@ -426,7 +432,7 @@ emgd_error_t BCGetLibFuncAddr (BCE_HANDLE unref__ hExtDrv, char *szFunctionName,
 }
 
 int BC_CreateBuffers(BC_DEVINFO *psDevInfo, bc_buf_params_t *p, IMG_BOOL is_conti_addr) {
-    IMG_UINT32 i = 0;
+    IMG_UINT32 i = 0, j = 0;
 	IMG_UINT32 stride = 0;
 	IMG_UINT32 size = 0;
     PVRSRV_PIXEL_FORMAT pixel_fmt = 0;
@@ -438,9 +444,17 @@ int BC_CreateBuffers(BC_DEVINFO *psDevInfo, bc_buf_params_t *p, IMG_BOOL is_cont
   		return -1;
 	}
 
-    if (p->width <= 1 || p->height <= 1) {
-        return -1;
-    }
+	if (p->count > BUFCLASS_BUFFER_MAX) {
+		return -1;
+	}
+
+	if (p->width <= 1 || p->height <= 1 || p->stride <=1 ) {
+		return -1;
+	}
+
+	if (p->width > 2048 || p->height > 1536 || p->stride >2048*4) {
+		return -1;
+	}
 
     switch (p->fourcc) {
         case BC_PIX_FMT_NV12:
@@ -455,6 +469,13 @@ int BC_CreateBuffers(BC_DEVINFO *psDevInfo, bc_buf_params_t *p, IMG_BOOL is_cont
             break;
         case BC_PIX_FMT_YUYV:
             pixel_fmt = PVRSRV_PIXEL_FORMAT_FOURCC_ORG_YUYV;
+            break;
+	case BC_PIX_FMT_ARGB:
+	case BC_PIX_FMT_RGB4:
+            pixel_fmt = PVRSRV_PIXEL_FORMAT_ARGB8888;
+            break;
+	case BC_PIX_FMT_xRGB:
+            pixel_fmt = PVRSRV_PIXEL_FORMAT_XRGB8888;
             break;
         default:
             return -1;
@@ -475,7 +496,8 @@ int BC_CreateBuffers(BC_DEVINFO *psDevInfo, bc_buf_params_t *p, IMG_BOOL is_cont
 			return -1;
 		}
 	} else {
-		if ((psDevInfo->sBufferInfo.ui32BufferCount + p->count) >= BUFCLASS_BUFFER_MAX) {
+
+		if ((psDevInfo->sBufferInfo.ui32BufferCount + p->count) > BUFCLASS_BUFFER_MAX) {
 			EMGD_ERROR("No avaiable Buffers");
 			return -1;
 		}
@@ -519,11 +541,17 @@ int BC_CreateBuffers(BC_DEVINFO *psDevInfo, bc_buf_params_t *p, IMG_BOOL is_cont
 		if (is_conti_addr){
         	bufnode->psSysAddr = (IMG_SYS_PHYADDR *)BCAllocKernelMem (sizeof(IMG_SYS_PHYADDR));
             if (NULL == bufnode->psSysAddr) {
-            	return EMGD_ERROR_OUT_OF_MEMORY;
-            }
+				/* Free the previously successfully allocated memeory */
+				for(j=0;j<i;j++) {
+					bufnode =
+						&(psDevInfo->psSystemBuffer[psDevInfo->sBufferInfo.ui32BufferCount + j]);
+					bc_ts_free_bcbuffer(bufnode);
+				}
+				return EMGD_ERROR_OUT_OF_MEMORY;
+			}
             memset(bufnode->psSysAddr, 0, sizeof(IMG_SYS_PHYADDR));
         } else {
-            return EMGD_ERROR_INVALID_PARAMS;
+			return EMGD_ERROR_INVALID_PARAMS;
         }
 	}
 
@@ -557,9 +585,15 @@ int BC_DestroyBuffers(void *psDevInfo) {
 	DevInfo = (BC_DEVINFO *)psDevInfo;
     EMGD_DEBUG("To Free %lu buffers", DevInfo->sBufferInfo.ui32BufferCount);
 
+	if (DevInfo->sBufferInfo.ui32BufferCount > BUFCLASS_BUFFER_MAX) {
+		EMGD_ERROR("Wrong number of buffers");
+	}
+
 	for (i = 0; i < DevInfo->sBufferInfo.ui32BufferCount; i++) {
-		bufnode = &(DevInfo->psSystemBuffer[i]);
-		bc_ts_free_bcbuffer(bufnode);
+		if(i < BUFCLASS_BUFFER_MAX) {
+			bufnode = &(DevInfo->psSystemBuffer[i]);
+			bc_ts_free_bcbuffer(bufnode);
+		}
 	}
 	BCFreeKernelMem(DevInfo->psSystemBuffer);
 	DevInfo->psSystemBuffer = NULL;
@@ -627,8 +661,8 @@ static __inline int emgd_bc_ts_bridge_init(struct drm_device *drv, void* arg, st
     	}
  	}
 
- 	if (BUFCLASS_DEVICE_MAX_ID == i) {
-    	EMGD_ERROR("Do you really need to run more than 5 video simulateously.");
+	if (BUFCLASS_DEVICE_MAX_ID == i) {
+	EMGD_ERROR("Do you really need to run more than 6 video simulateously.");
  	}
 
 	EMGD_TRACE_EXIT;
@@ -651,6 +685,10 @@ static __inline int emgd_bc_ts_bridge_uninit(struct drm_device *drv, void* arg, 
 	}
 
 	psDevInfo = (BC_DEVINFO *)GetAnchorPtr(psBridge->dev_id);
+	if (NULL == psDevInfo) {
+		EMGD_ERROR("System Error");
+		return err;
+	}
 
 	/* To disable buffer class device*/
 	emgd_bc_ts_set_state(psDevInfo, 0);
@@ -755,7 +793,7 @@ static __inline int emgd_bc_ts_bridge_set_buffer_info(struct drm_device *drv, vo
 	emgd_drm_bc_ts_t *psBridge = (emgd_drm_bc_ts_t *) arg;
 	BC_DEVINFO *devinfo = IMG_NULL;
 	BC_BUFFER *bcBuf = NULL;
-
+	unsigned long virt=0;
 	EMGD_TRACE_ENTER;
 
 	if (NULL == psBridge) {
@@ -811,9 +849,27 @@ static __inline int emgd_bc_ts_bridge_set_buffer_info(struct drm_device *drv, vo
 	if (IMG_FALSE == bcBuf->is_conti_addr) {
 		EMGD_ERROR("Only support conti. memory!");
 	} else {
-		bcBuf->psSysAddr[0].uiAddr = psBridge->phyaddr;
-	}
+		if(!psBridge->mapped){
 
+			if(!psBridge->virtaddr) {
+		        EMGD_ERROR("Invalid bridge address");
+		        return err;
+			}
+			/*The CPU device will be registerd into PVR later*/
+			virt=((struct emgd_ci_meminfo_t *)(psBridge->virtaddr))->virt;
+			if(!virt) {
+		        EMGD_ERROR("Invalid CPU address");
+				return err;
+			}
+			bcBuf->sCPUVAddr = virt;
+			printk(KERN_ERR"virt=0x%08lx\n",virt);
+			bcBuf->psSysAddr[0].uiAddr = virt_to_phys(virt);
+
+		}else{
+			bcBuf->psSysAddr[0].uiAddr = psBridge->phyaddr;
+		}
+	}
+	bcBuf->mapped = psBridge->mapped;
 SUCCESS_OK:
 	psBridge->rtn = 0;
 

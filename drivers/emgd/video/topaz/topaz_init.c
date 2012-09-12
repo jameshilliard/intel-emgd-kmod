@@ -89,7 +89,6 @@ void get_mtx_control_from_dash(igd_context_t *context);
 
 void release_mtx_control_from_dash(igd_context_t *context);
 
-/* According to UMG code this define is important */
 #define RAM_SIZE (1024 * 24)
 
 /* register default values */
@@ -409,6 +408,10 @@ int topaz_init_tnc(unsigned long wb_offset, void *wb_addr, void *firmware_addr)
 	context = priv->context;
 	mmio = context->device_context.virt_mmadr;
 
+	if(!wb_addr || !firmware_addr) {
+		return -EINVAL;
+	}
+
 	/* Only support Atom E6xx */
 	if ((PCI_DEVICE_ID_VGA_TNC != context->device_context.did)||
 	   (context->device_context.bid == PCI_DEVICE_ID_BRIDGE_TNC_ULP)) {
@@ -513,6 +516,9 @@ int topaz_setup_fw(igd_context_t *context, enum tnc_topaz_encode_fw codec)
 
 	/* topaz_upload_fw */
 	/* Point to request firmware */
+	if((codec < 1) || (codec > 9)) {
+		return 1;
+	}
 	curr_fw = &firmware[codec];
 
 	upload_firmware(context, curr_fw);
@@ -904,6 +910,10 @@ int process_video_encode_tnc(igd_context_t *context, unsigned long offset, void 
 
 	EMGD_TRACE_ENTER;
 
+	if(!virt_addr || !fence_id) {
+		return -EINVAL;
+	}
+
 	platform = (platform_context_plb_t *)context->platform_context;
 	topaz_priv = &platform->tpz_private_data;
 	mtx_buf = (unsigned long *) virt_addr;
@@ -915,8 +925,8 @@ int process_video_encode_tnc(igd_context_t *context, unsigned long offset, void 
 	ret = process_encode_mtx_messages(context, mtx_buf, size);
 	if (ret){
 		printk(KERN_INFO "Invalid topaz encode cmd");
-	ret = -EINVAL;
-        }
+		ret = -EINVAL;
+    }
 
 	*fence_id = topaz_priv->topaz_sync_id;
 	platform->topaz_busy = 0;
@@ -961,6 +971,10 @@ int topaz_get_frame_skip(igd_context_t *context, unsigned long *frame_skip)
 	tnc_topaz_priv_t *topaz_priv;
 	platform_context_tnc_t *platform;
 
+	if(!frame_skip) {
+		return -EINVAL;
+	}
+
 	platform = (platform_context_tnc_t *)context->platform_context;
 	topaz_priv = &platform->tpz_private_data;
 	*frame_skip = topaz_priv->topaz_frame_skip;
@@ -974,6 +988,10 @@ int topaz_get_fence_id(igd_context_t *context, unsigned long *fence_id)
 	tnc_topaz_priv_t *topaz_priv;
 	unsigned long *sync_p;
 	platform_context_tnc_t *platform;
+
+	if(!fence_id) {
+		return -EINVAL;
+	}
 
 	platform = (platform_context_tnc_t *)context->platform_context;
 	topaz_priv = &platform->tpz_private_data;

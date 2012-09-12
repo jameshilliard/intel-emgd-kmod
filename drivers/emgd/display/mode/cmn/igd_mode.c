@@ -1864,6 +1864,8 @@ int full_mode_init(igd_context_t *context,
 		mode_context->dispatch->check_port_supported;
 	context->mod_dispatch.get_refresh_in_border =
 		mode_context->dispatch->get_refresh_in_border;
+	context->mod_dispatch.get_port_control =
+		mode_context->dispatch->full->get_port_control;
 
 
 	/* Hook up Core specific IGD dispatch table entries */
@@ -1883,6 +1885,7 @@ int full_mode_init(igd_context_t *context,
 	dispatch->disable_vblank_callback =
 		mode_context->dispatch->full->disable_vblank_callback;
 
+	dispatch->unlock_planes = mode_context->dispatch->full->unlock_planes;
 	/* Assign the fw_info structure and Zero-out the contents */
 	mode_context->fw_info = &global_fw_info;
 	OS_MEMSET(mode_context->fw_info, 0, sizeof(fw_info_t));
@@ -2113,6 +2116,7 @@ int query_seamless(unsigned long dc,
 	int ret = FALSE;
 	igd_display_info_t *timing;
 	igd_framebuffer_info_t *fb_info;
+	unsigned long in_pitch;
 
 	EMGD_TRACE_ENTER;
 	EMGD_DEBUG("Incoming dc = 0x%08lx", dc);
@@ -2123,9 +2127,16 @@ int query_seamless(unsigned long dc,
 	mode_context->fw_info->fw_dc =
 				 mode_context->context->mod_dispatch.dsp_fw_dc;
 
+	EMGD_DEBUG("firmware dc = 0x%08lx",mode_context->fw_info->fw_dc );
+
 	if(dc != mode_context->fw_info->fw_dc) {
-		/* DC doesn't match */
-		return FALSE;
+		/*special case when seamless transition from fw clone to vext */
+		if(!(IGD_DC_VEXT(dc) && IGD_DC_CLONE(mode_context->fw_info->fw_dc)))
+		{
+			/* DC doesn't match */
+			return FALSE;
+		}
+		EMGD_DEBUG("past dc check");
 	}
 
 	/* Note: this test both overcomes a compiler warning, as well as a
@@ -2148,7 +2159,7 @@ int query_seamless(unsigned long dc,
 
 			/* Have to build in some tolerance here because the fresh rate may
 			 * not match exactly */
-			if (abs(timing->refresh - pt->refresh) <= 1) {
+			if (abs(timing->refresh - pt->refresh) <= 2) {
 
 			ret = TRUE;
 		}
@@ -2175,11 +2186,15 @@ int query_seamless(unsigned long dc,
 	/* Check Plane information */
 	if(pf != NULL) {
 		fb_info = &mode_context->fw_info->fb_info[index];
-		ret = FALSE;
+		ret = TRUE;
+		/* the incoming pitch=0, since it won't be filled until FB is allocated, calculating it now, so that
+		 * it can be compared with the fw pitch */
+		in_pitch = (IGD_PF_DEPTH(pf->pixel_format) * pf->width) >> 3;
 
-		if( (fb_info->screen_pitch != pf->screen_pitch) ||
-			(fb_info->width != pf->width) ||
-			(fb_info->height != pf->height) ) {
+		/* Pitch for both PLB and TNC requires 64-byte alignment */
+		in_pitch = ALIGN(in_pitch, 64);
+
+		if(fb_info->screen_pitch != in_pitch) {
 
 			/* If width, height or pitch is different
 			 * Don't have to turn-off pipe, just update
@@ -2188,7 +2203,6 @@ int query_seamless(unsigned long dc,
 			 * the registers.
 			 */
 			mode_context->fw_info->program_plane = 1;
-			ret = TRUE;
 		}
 
 	}

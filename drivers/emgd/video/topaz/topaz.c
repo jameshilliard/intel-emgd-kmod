@@ -48,6 +48,9 @@
 #include <plb/regs.h>
 #include <plb/context.h>
 
+#define MAX_CURRENT_TOPAZ_CMD_SIZE 5
+#define MAX_TOPAZ_CMD_SIZE 0x20
+
 void write_mtx_mem_multiple_setup(igd_context_t *context,
 		unsigned long addr)
 {
@@ -131,7 +134,7 @@ int mtx_send_tnc(igd_context_t *context, unsigned long *msg)
 		if (ret == 0) {
 			topaz_priv->topaz_cmd_windex = 0;
 		} else {
-			EMGD_ERROR("TOPAZ: poll rindex timeout\n");
+			printk(KERN_ERR "TOPAZ: poll rindex timeout\n");
 			return ret; /* HW may hang, need reset */
 		}
 		EMGD_DEBUG("TOPAZ: -------wrap CCB was done.\n");
@@ -229,7 +232,7 @@ int process_encode_mtx_messages(igd_context_t *context,
 			unsigned long size)
 {
 	unsigned long *command = (unsigned long *) mtx_buf;
-	unsigned long cmd_size = size;
+	unsigned long cmd_size = 0;
 	int ret = 0;
 	struct topaz_cmd_header *cur_cmd_header;
 	unsigned long cur_cmd_size, cur_cmd_id;
@@ -241,8 +244,20 @@ int process_encode_mtx_messages(igd_context_t *context,
 	topaz_priv = &platform->tpz_private_data;
 
 	cur_cmd_header = (struct topaz_cmd_header *) command;
+
+	if(!cur_cmd_header) {
+		printk(KERN_ERR "TOPAZ: Invalid Command\n");
+		return -IGD_ERROR_INVAL;
+	}
+
 	cur_cmd_size = cur_cmd_header->size;
 	cur_cmd_id = cur_cmd_header->id;
+
+	/* Verify the incoming current command size */
+	if((cur_cmd_size == 0) || (cur_cmd_size > MAX_CURRENT_TOPAZ_CMD_SIZE)) {
+		printk(KERN_ERR "TOPAZ: Invalid Command Size\n");
+		return -IGD_ERROR_INVAL;
+	}
 
 	while (cur_cmd_id != MTX_CMDID_NULL) {
 
@@ -251,7 +266,7 @@ int process_encode_mtx_messages(igd_context_t *context,
 				codec = *((unsigned long *) mtx_buf + 1);
 				EMGD_DEBUG("TOPAZ: setup new codec %ld\n", codec);
 				if (topaz_setup_fw(context, codec)) {
-					EMGD_ERROR("TOPAZ: upload FW to HW failed\n");
+					printk(KERN_ERR "TOPAZ: upload FW to HW failed\n");
 					return -IGD_ERROR_INVAL;
 				}
 				topaz_priv->topaz_cur_codec = codec;
@@ -271,28 +286,55 @@ int process_encode_mtx_messages(igd_context_t *context,
 					*(command + cur_cmd_size - 1));
 				/* strip the QP parameter (it's software arg) */
 				cur_cmd_header->size--;
-			default:
+			case MTX_CMDID_DO_HEADER:
+			case MTX_CMDID_ENCODE_SLICE:
+			case MTX_CMDID_END_PIC:
+			case MTX_CMDID_SYNC:
+			case MTX_CMDID_ENCODE_ONE_ROW:
+			case MTX_CMDID_FLUSH:
+
 				cur_cmd_header->seq = 0x7fff &
 					topaz_priv->topaz_cmd_seq++;
 				EMGD_DEBUG("TOPAZ: %ld: size(%ld), seq (0x%04x)\n",
 					cur_cmd_id, cur_cmd_size, cur_cmd_header->seq);
 				ret = mtx_send_tnc(context, command);
 				if (ret) {
-					EMGD_ERROR("TOPAZ: error -- ret(%d)\n", ret);
+					printk(KERN_ERR "TOPAZ: error -- ret(%d)\n", ret);
 					return -IGD_ERROR_INVAL;
 				}
 				break;
+			default:
+				printk(KERN_ERR "TOPAZ: Invalid Command\n");
+				return -IGD_ERROR_INVAL;
 			}
-        /* save frame skip flag for query */
-        /*topaz_priv->topaz_frame_skip = 0; CCB_CTRL_FRAMESKIP(context);*/
-        /* current command done */
+
+		/* current command done */
 		command += cur_cmd_size;
-		cmd_size -= cur_cmd_size;
+		cmd_size += cur_cmd_size;
+
+		/* Verify that the incoming commands are of reasonable size */
+		if((cmd_size >= MAX_TOPAZ_CMD_SIZE)) {
+			printk(KERN_ERR "TOPAZ: Invalid Command Size\n");
+			return -IGD_ERROR_INVAL;
+		}
 
 		/* Get next command */
 		cur_cmd_header = (struct topaz_cmd_header *) command;
+
+		if(!cur_cmd_header) {
+			printk(KERN_ERR "TOPAZ: Invalid Command\n");
+			return -IGD_ERROR_INVAL;
+		}
+
 		cur_cmd_size = cur_cmd_header->size;
 		cur_cmd_id = cur_cmd_header->id;
+
+		/* Verify the incoming current command size */
+		if((cur_cmd_size == 0) || (cur_cmd_size > MAX_CURRENT_TOPAZ_CMD_SIZE)) {
+			printk(KERN_ERR "TOPAZ: Invalid Command Size\n");
+			return -IGD_ERROR_INVAL;
+		}
+
 	}
 	topaz_sync_tnc(context); 
 

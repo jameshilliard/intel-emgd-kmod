@@ -1842,12 +1842,12 @@ int sdvo_open(pd_callback_t *p_callback, void **pp_context)
 
 #ifndef CONFIG_MICRO
 	/* reset context to avoid wrong timing list */
-	if ((p_ctx->dev_cap.vendor_id != VENDOR_ID_OKI)
-		&& (p_ctx->dev_cap.device_id != 0x1)){
+	if ((p_ctx->dev_cap.vendor_id != VENDOR_ID_LAPIS)
+		&& (p_ctx->dev_cap.device_id != 0x1) && p_callback->reset ){
+        printk(KERN_INFO"@@@@@@@@resetting encoder\n");
 		sdvo_reset_encoder(p_ctx);
 	}
 #endif
-
 	status = sdvo_get_device_capabilities(p_ctx, &p_ctx->dev_cap);
 	if (status != SS_SUCCESS) {
 
@@ -1916,7 +1916,7 @@ int sdvo_open(pd_callback_t *p_callback, void **pp_context)
 #ifndef CONFIG_MICRO
 	/*We want this in (Windows XP driver) AND
 	(in VBIOS when LVDS is not linked.)*/
-	if ((p_ctx->dev_cap.vendor_id == VENDOR_ID_OKI)
+	if ((p_ctx->dev_cap.vendor_id == VENDOR_ID_LAPIS)
 		&& (p_ctx->dev_cap.device_id == 0x1)){
 		status = sdvo_set_target_input(p_ctx, p_ctx->inp_dev);
 		if (status != SS_SUCCESS) {
@@ -2417,13 +2417,13 @@ int sdvo_set_mode(void *p_context, pd_timing_t *p_mode, unsigned long flags)
 #ifndef CONFIG_MICRO
 	/*We want this in (Windows XP driver) AND
 	(in VBIOS when LVDS is not linked.)*/
-	/* This workaround needed for OKI solution only.
+	/* This workaround needed for LAPIS solution only.
 	It would probably give problem if the SDVO is connected to
-	analog display, but that is not the usage model for OKI.
+	analog display, but that is not the usage model for LAPIS.
 	*/
-	if ((p_ctx->dev_cap.vendor_id == VENDOR_ID_OKI)
+	if ((p_ctx->dev_cap.vendor_id == VENDOR_ID_LAPIS)
 		&& (p_ctx->dev_cap.device_id == 0x1)){
-		/* The OKI SDVO receiver to return “Invalid Argument” when:
+		/* The LAPIS SDVO receiver to return “Invalid Argument” when:
 		(1) Horizontal Active   < 600
 		(2) Horizontal Blanking < 16
 		(3) HSync pulse width  < 2
@@ -2528,8 +2528,8 @@ int sdvo_post_set_mode(void *p_context, pd_timing_t *p_mode,
 	PD_DEBUG("sdvo: sdvo_post_set_mode()");
 
 #ifndef CONFIG_MICRO
-	/* This is a workaround specific to OKI */
-	if((p_ctx->dev_cap.vendor_id == VENDOR_ID_OKI)
+	/* This is a workaround specific to LAPIS */
+	if((p_ctx->dev_cap.vendor_id == VENDOR_ID_LAPIS)
 		&& (p_ctx->dev_cap.device_id == 0x1)){
 
 		pd_timing_t local_p_mode;
@@ -2538,7 +2538,7 @@ int sdvo_post_set_mode(void *p_context, pd_timing_t *p_mode,
 		local_p_mode = *p_mode;
 
 		sdvo_reset_encoder(p_context);
-		/* sdvo_reset(p_context);*/ /* THIS is workaround for OKI SDVO flashing issue.*/
+		/* sdvo_reset(p_context);*/ /* THIS is workaround for LAPIS SDVO flashing issue.*/
 		sdvo_set_power(p_context, 0);
 		if (p_ctx->display_pwr_state == 0x0)
 		{
@@ -2695,11 +2695,11 @@ int sdvo_get_attributes(void *p_context, unsigned long *p_num_attr,
 		return 0;
 	}
 #ifndef CONFIG_MICRO
-	/* This is a workaround specific to OKI */
-	if(p_ctx->dev_cap.vendor_id == VENDOR_ID_OKI
+	/* This is a workaround specific to LAPIS */
+	if(p_ctx->dev_cap.vendor_id == VENDOR_ID_LAPIS
 		&& p_ctx->dev_cap.device_id == 0x1){
 		/* 	TODO: sdvo_set_target_output return pending when the power state is D3 on
-		* 	ML7213 A0. other sdvo cards don't have this problem and OKI don't see
+		* 	ML7213 A0. other sdvo cards don't have this problem and LAPIS don't see
 		* 	this problem on their site. verify this on A1 and remove the code if
 		* 	it return success */
 		sdvo_set_power(p_ctx, PD_POWER_MODE_D0);
@@ -3868,7 +3868,7 @@ int sdvo_is_multi_display_device(sdvo_device_context_t *p_ctx)
 static sdvo_status_t sdvo_reset_encoder(sdvo_device_context_t *p_ctx)
 {
 	sdvo_status_t ret_stat;
-	if ((p_ctx->dev_cap.vendor_id == VENDOR_ID_OKI)
+	if ((p_ctx->dev_cap.vendor_id == VENDOR_ID_LAPIS)
 		&& (p_ctx->dev_cap.device_id == 0x1)){
 
 		pd_attr_t *p_attr_temp =

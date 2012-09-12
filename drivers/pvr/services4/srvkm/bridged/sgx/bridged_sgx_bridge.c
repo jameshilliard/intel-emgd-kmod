@@ -2455,6 +2455,30 @@ SGXPDumpHWPerfCBBW(IMG_UINT32						ui32BridgeID,
 
 #endif
 
+/* LGE HACK: SGX reset*/
+IMG_VOID HWRecoveryResetSGX (PVRSRV_DEVICE_NODE *psDeviceNode,
+							 IMG_UINT32 		ui32Component,
+							 IMG_UINT32			ui32CallerID);
+
+
+IMG_INT
+DummyBW2(IMG_UINT32 ui32BridgeID,
+		PVRSRV_BRIDGE_IN_MAPPHYSTOUSERSPACE *psBridgeIn,
+		PVRSRV_BRIDGE_OUT_MAPPHYSTOUSERSPACE *psBridgeOut,
+		PVRSRV_PER_PROCESS_DATA *psPerProc)
+{
+	IMG_HANDLE hDevCookieInt;
+
+		PVRSRVLookupHandle(psPerProc->psHandleBase,
+						   &hDevCookieInt,
+						   psBridgeIn->hDevCookie,
+						   PVRSRV_HANDLE_TYPE_DEV_NODE);
+
+	printk("[%s %d]HWRecoveryResetSGX\n",__FUNCTION__,__LINE__);
+	HWRecoveryResetSGX(hDevCookieInt, 0, KERNEL_ID);
+
+	return 0;
+}
 
 IMG_VOID SetSGXDispatchTableEntry(IMG_VOID)
 {
@@ -2463,7 +2487,7 @@ IMG_VOID SetSGXDispatchTableEntry(IMG_VOID)
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SGX_RELEASECLIENTINFO, SGXReleaseClientInfoBW);
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SGX_GETINTERNALDEVINFO, SGXGetInternalDevInfoBW);
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SGX_DOKICK, SGXDoKickBW);
-	SetDispatchTableEntry(PVRSRV_BRIDGE_SGX_GETPHYSPAGEADDR, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SGX_GETPHYSPAGEADDR, DummyBW2);
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SGX_READREGISTRYDWORD, DummyBW);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SGX_2DQUERYBLTSCOMPLETE, SGX2DQueryBlitsCompleteBW);

@@ -546,9 +546,6 @@ int ch7036_post_set_mode(void *p_context, pd_timing_t *p_mode,
 	int ret;
 
 
-
-
-
 	if (!p_ctx || !p_mode ) {
 		return (PD_ERR_NULL_PTR);
 	}
@@ -597,7 +594,7 @@ int ch7036_post_set_mode(void *p_context, pd_timing_t *p_mode,
 
 #endif
 
-	return PD_SUCCESS;
+	return p_ctx->pwr_state = PD_POWER_MODE_D0;
 }
 
 
@@ -1337,6 +1334,11 @@ int ch7036_restore(void *p_context, void *state, unsigned long flags)
 #ifdef LVDS_ONLY
 
 	return PD_INTERNAL_LVDS_MODULE_RESTORE(ch7036_restore,(p_ctx->internal_lvds, state, flags));
+#endif
+
+#ifdef T_LINUX
+	if(p_ctx->pwr_state=! PD_POWER_MODE_D1)
+		return PD_SUCCESS;
 #endif
 
 

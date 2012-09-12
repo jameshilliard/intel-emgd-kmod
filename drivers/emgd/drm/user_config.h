@@ -111,6 +111,10 @@ typedef struct _emgd_drm_config {
 	 * abstraction layer code.
 	 */
 	igd_param_t *hal_params[USER_CONFIG_NUM];
+	/** Enable V2G Camera Module **/
+#ifdef SUPPORT_V2G_CAMERA
+	int v2g;
+#endif
 } emgd_drm_config_t;
 
 #endif

@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: ovl2_tnc.c
- * $Revision: 1.23 $
+ * $Revision: 1.21.26.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -265,7 +265,7 @@ unsigned int ovl2_send_instr_tnc(
 	unsigned int      flags)
 {
 	unsigned char *mmio = MMIO(display);
-	 unsigned long tmp, pipe_reg, pipe_num;
+	unsigned long tmp, pipe_num, pipe_reg;
 	inter_module_dispatch_t *md;
 	platform_context_tnc_t * platform;
 

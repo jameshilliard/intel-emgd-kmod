@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: micro_mode_tnc.c
- * $Revision: 1.47 $
+ * $Revision: 1.47.60.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -1755,7 +1755,15 @@ void reset_plane_pipe_ports_tnc(igd_context_t *context)
 			if(port->pd_type == PD_DISPLAY_TVOUT) {
 				tv_port = port;
 			}else {
-				port->pd_driver->set_power(port->pd_context, IGD_POWERSTATE_D3);
+				/*CH7036:for Meego killallX issue*/
+				if(context->device_context.power_state == IGD_POWERSTATE_D1) { //ACPI
+				/* D1 power state for graphics is requested*/
+					 port->pd_driver->set_power(port->pd_context,context->device_context.power_state);
+					/*pass it to pd */
+				}
+				else {
+					port->pd_driver->set_power(port->pd_context, IGD_POWERSTATE_D3);
+				}/* else end*/
 			}
 		}
 
@@ -2131,7 +2139,7 @@ int post_program_port_tnc(igd_display_context_t *display,
 		#ifndef CONFIG_MICRO
 		if (pt == IGD_PORT_SDVO){
 			ret = port->pd_driver->post_set_mode(port->pd_context, timings,
-				status); /*Needed for OKI*/
+				status); /*Needed for LAPIS*/
 		} else {
 			ret = port->pd_driver->post_set_mode(port->pd_context, timings,
 				1<<PIPE(display)->pipe_num);

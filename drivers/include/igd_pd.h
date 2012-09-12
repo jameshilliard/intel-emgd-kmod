@@ -52,6 +52,8 @@
 #define FALSE  0
 #endif
 
+#define POW2( X )   (unsigned long)1<<(X)
+
 /*!
  * @addtogroup display_group
  *

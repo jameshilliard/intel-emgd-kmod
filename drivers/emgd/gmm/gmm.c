@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: gmm.c
- * $Revision: 1.53 $
+ * $Revision: 1.53.6.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -41,6 +41,7 @@
 #include <linux/init.h>
 
 #include <asm/agp.h>
+#include "igd_gmm.h"
 
 #define AGP_PHYS_MEMORY 2 /* Physical contigous memory */
 struct emgd_ci_surface_t{
@@ -49,6 +50,7 @@ struct emgd_ci_surface_t{
 	unsigned int virt;
 	unsigned long size;
 	unsigned long gtt_offset;
+	unsigned long vbufqueue_handle;
 	};
 #define MAX_CI_LIST_SIZE 14
 struct emgd_ci_surface_t ci_surfaces[MAX_CI_LIST_SIZE];
@@ -885,13 +887,17 @@ int gmm_map_to_graphics(unsigned long phys_addr,
 	EMGD_TRACE_EXIT;
 	return ret;
 }
+EXPORT_SYMBOL(gmm_map_to_graphics);
+
+
+
 
 /*
  * find gtt_offset and virtual address from ci_surface list according to the same v4l2_offset
  */
 
 static int gmm_map_ci(unsigned long *gtt_offset,
-			unsigned long ci_param,	/* virtaddr or v4l2_offset */
+			unsigned long ci_param,	/* cast to  (struct emgd_ci_meminfo_t *) */
 			unsigned long *virt_addr,
 			unsigned int map_method,
 			unsigned long size)
@@ -899,9 +905,14 @@ static int gmm_map_ci(unsigned long *gtt_offset,
 {
 	unsigned char i;
 	int ret;
+	struct emgd_ci_meminfo_t * ci_meminfo;
+	unsigned long virt;
+
+	ci_meminfo = (struct emgd_ci_meminfo_t *)ci_param;
+	virt = ci_meminfo->virt;
 
 	if(map_method){
-		ret = gmm_map_to_graphics(virt_to_phys((unsigned long *)ci_param),size,gtt_offset);
+		ret = gmm_map_to_graphics(virt_to_phys((unsigned long *)virt),size,gtt_offset);
 		if(ret)
 			return ret;
 		else{
@@ -910,10 +921,10 @@ static int gmm_map_ci(unsigned long *gtt_offset,
 				if(!ci_surfaces[i].used){
 
 					ci_surfaces[i].used = 1;
-					ci_surfaces[i].virt = ci_param;
+					ci_surfaces[i].virt = virt;
 					ci_surfaces[i].size = size;
 					ci_surfaces[i].gtt_offset = *gtt_offset;
-					*virt_addr = ci_param;
+					*virt_addr = virt;
 					break;
 				}
 			}
@@ -922,7 +933,8 @@ static int gmm_map_ci(unsigned long *gtt_offset,
 	else{
 
 		for(i=0;i<MAX_CI_LIST_SIZE;i++){
-			if(ci_surfaces[i].used && (ci_surfaces[i].v4l2_offset ==ci_param)){
+			if(ci_surfaces[i].used && (ci_surfaces[i].vbufqueue_handle == ci_meminfo->vbufqueue_handle)
+				&& (ci_surfaces[i].v4l2_offset ==ci_meminfo->v4l2_offset)){
 
 				*gtt_offset = ci_surfaces[i].gtt_offset;
 				*virt_addr = ci_surfaces[i].virt;
@@ -1112,7 +1124,12 @@ static int gmm_alloc_chunk_space(gmm_context_t *gmm_context,
 	 *
 	 */
 	if (gmm_context->tail_chunk == NULL) {
-		chunk->offset = 0;
+		/* 1st ever chunk */
+		if(gmm_context->context->mod_dispatch.init_params->qb_seamless) {
+			chunk->offset = (gmm_context->context->device_context.stolen_pages) * PAGE_SIZE;
+		} else {
+			chunk->offset = 0;
+		}
 	} else {
 		chunk->offset = gmm_context->tail_chunk->offset +
 			gmm_context->tail_chunk->size;
@@ -1187,7 +1204,6 @@ static int gmm_import_pages(void **pagelist,
 		unsigned long numpages)
 {
 	gmm_chunk_t *chunk;
-
 	EMGD_TRACE_ENTER;
 
 	EMGD_DEBUG("Importing %lu pages into GTT\n", numpages);
@@ -1233,7 +1249,11 @@ static int gmm_import_pages(void **pagelist,
 		if (gmm_context.tail_chunk == NULL) {
 			/* First chunk ever! */
 			gmm_context.head_chunk = chunk;
-			chunk->offset = 0;
+			if(gmm_context.context->mod_dispatch.init_params->qb_seamless) {
+				chunk->offset = (gmm_context.context->device_context.stolen_pages) * PAGE_SIZE;
+			} else {
+				chunk->offset = 0;
+			}
 		} else {
 			chunk->offset = gmm_context.tail_chunk->offset +
 				gmm_context.tail_chunk->size;
@@ -1343,12 +1363,6 @@ static int gmm_get_page_list(unsigned long offset,
 	return 0;
 }
 
-struct emgd_ci_meminfo_t {
-	unsigned long v4l2_offset;
-	unsigned long virt;
-	unsigned long  size;
-	};
-
 int emgd_map_ci_buf(struct emgd_ci_meminfo_t * ci_meminfo)
 {
 	int ret;
@@ -1363,9 +1377,11 @@ int emgd_map_ci_buf(struct emgd_ci_meminfo_t * ci_meminfo)
 	for(i=0;i<MAX_CI_LIST_SIZE;i++){
 		if(!ci_surfaces[i].used){
 			ci_surfaces[i].used = 1;
-			ci_surfaces[i].virt = virt_to_phys((unsigned long *)ci_meminfo->virt);
+			ci_surfaces[i].virt = ci_meminfo->virt;
 			ci_surfaces[i].size =  ci_meminfo->size;
 			ci_surfaces[i].gtt_offset =  gtt_offset;
+			ci_surfaces[i].vbufqueue_handle =  ci_meminfo->vbufqueue_handle;
+			ci_surfaces[i].v4l2_offset = ci_meminfo->v4l2_offset;
 			return 0;
 		}
 	}

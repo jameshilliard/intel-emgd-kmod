@@ -301,15 +301,15 @@ static igd_clock_t clock_b_tnc = {
 static igd_display_pipe_t pipea_tnc = {
 	0, PIPEA_CONF, PIPEA_TIMINGS, DPALETTE_A, &clock_a_tnc,
 	(IGD_PIPE_IS_PIPEA | IGD_PORT_SHARE_LVDS),
-	0, 0,{NULL, NULL, NULL}, NULL, NULL, NULL,
-	NULL, NULL
+	0, 0,{NULL, NULL, NULL}, &planea_tnc, NULL, NULL,
+	NULL, NULL, NULL
 };
 
 static igd_display_pipe_t pipeb_tnc = {
 	1, PIPEB_CONF, PIPEB_TIMINGS, DPALETTE_B, &clock_b_tnc,
 	(IGD_PIPE_IS_PIPEB | IGD_PORT_SHARE_DIGITAL),
-	0, 0,{NULL, NULL, NULL}, NULL, NULL, NULL,
-	NULL, NULL
+	0, 0,{NULL, NULL, NULL}, &planeb_tnc, NULL, NULL,
+	NULL, NULL, NULL
 };
 
 static igd_display_pipe_t *pipe_table_tnc[] = {
