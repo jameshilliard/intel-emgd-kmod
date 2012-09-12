@@ -1,3 +1,6 @@
+* Wed Sep 12 2012 Quanxian Wang <quanxian.wang@intel.com> - 3104
+- update to 3104 build
+
 * Tue Sep 11 2012 Artem Bityutskiy <artem.bityutskiy@linux.intel.com> - 2667
 - Add 2 more emgd driver configurations, partially fix TIVI-109.
 
