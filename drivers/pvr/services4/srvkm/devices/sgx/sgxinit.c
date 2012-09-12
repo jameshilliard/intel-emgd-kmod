@@ -950,7 +950,6 @@ IMG_VOID SGXDumpDebugInfo (PVRSRV_DEVICE_NODE *psDeviceNode,
 
 
 #if defined(SYS_USING_INTERRUPTS) || defined(SUPPORT_HW_RECOVERY)
-static
 IMG_VOID HWRecoveryResetSGX (PVRSRV_DEVICE_NODE *psDeviceNode,
 							 IMG_UINT32 		ui32Component,
 							 IMG_UINT32			ui32CallerID)

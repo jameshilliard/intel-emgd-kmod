@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: emgd_drm.h
- * $Revision: 1.64 $
+ * $Revision: 1.63.12.3 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -32,7 +32,7 @@
 #define _EMGD_DRM_H_
 
 #include <linux/version.h>
-#include <drm/drm.h>
+#include <drm.h>
 #include <igd.h>
 #include <igd_appcontext.h>
 #include <igd_errno.h>
@@ -479,6 +479,10 @@ typedef struct _kdrm_query_max_size_ovl {
 	unsigned int max_height; /* (UP) */
 } emgd_drm_query_max_size_ovl_t;
 
+typedef struct _kdrm_framebuffer_info {
+	int rtn; /* (UP) - return value of HAL procedure */
+	igd_framebuffer_info_t fb_info; /* (UP) */
+} emgd_drm_framebuffer_info_t;
 
 typedef struct _kdrm_query_ovl {
 	int rtn; /* (UP) - return value of HAL procedure */
@@ -652,6 +656,20 @@ typedef struct _kdrm_query_2d_caps_hwhint {
 	unsigned long *status; /* (UP) */
 } emgd_drm_query_2d_caps_hwhint_t;
 
+
+typedef struct _kdrm_cfg_bufs_t {
+	int rtn;					/* (UP) - return value of HAL procedure */
+	igd_display_h primary;		/* (DOWN) - primary display handle */
+	igd_display_h secondary;	/* (DOWN) - secondary display handle */
+	igd_buffer_config_t buf_cfg[2][3];/* (DOWN) - pri & sec buffer config */
+} emgd_drm_cfg_bufs_t;
+
+typedef struct _kdrm_switch_hz {
+	int rtn;					/* (UP) - return value of HAL procedure */
+	int hz;						/* (DOWN) - The hertz that need to be changed */
+	int pipe;					/* (DOWN) - Pipe to change for */
+} emgd_drm_switch_hz;
+
 /* For Buffer Class FCB #17711*/
 typedef struct _kdrm_bc_ts {
 	int rtn;
@@ -666,7 +684,14 @@ typedef struct _kdrm_bc_ts {
 	unsigned long pixel_format;
 	unsigned long phyaddr;
 	unsigned long virtaddr;
+	unsigned int mapped;
 } emgd_drm_bc_ts_t;
+
+typedef struct _kdrm_unlock_planes {
+	int rtn;					/* (UP) - return value of HAL procedure */
+	igd_display_h display_handle; /* (DOWN) - an "opaque handle" */
+	unsigned int screen_num; /*primary=0, secondary=1 */
+} emgd_drm_unlock_planes_t;
 
 /*
  * This is where all the IOCTL's used by the egd DRM interface are
@@ -707,6 +732,10 @@ typedef struct _kdrm_bc_ts {
 #define DRM_IGD_QUERY_2D_CAPS_HWHINT 0x35
 #define DRM_IGD_DIHCLONE_SET_SURFACE 0x36
 #define DRM_IGD_SET_OVERLAY_DISPLAY  0x37
+#define DRM_IGD_GET_2ND_FB           0x3A
+#define DRM_IGD_CONFIG_BUFFS         0x3B
+#define DRM_IGD_SWITCH_HZ            0x3C
+
 #define DRM_IGD_WAIT_VBLANK			 0x40
 
 /*
@@ -753,6 +782,8 @@ typedef struct _kdrm_bc_ts {
 #define DRM_IGD_GET_CHIPSET_INFO    0x30
 #define DRM_IGD_GET_DISPLAY_INFO    0x38
 #define DRM_IGD_PREINIT_MMU         0x39
+#define  DRM_IGD_UNLOCK_PLANES       0x47
+
 /* For Buffer Class of Texture Stream */
 #define DRM_IGD_BC_TS_INIT			0x40
 #define DRM_IGD_BC_TS_UNINIT		0x41
@@ -848,6 +879,8 @@ typedef struct _kdrm_bc_ts {
 		emgd_drm_control_plane_format_t)
 #define DRM_IOCTL_IGD_SET_OVERLAY_DISPLAY DRM_IOWR(DRM_IGD_SET_OVERLAY_DISPLAY + BASE,\
 		emgd_drm_set_overlay_display_t)
+#define DRM_IOCTL_IGD_GET_2ND_FB       DRM_IOWR(DRM_IGD_GET_2ND_FB + BASE,\
+		emgd_drm_framebuffer_info_t)
 #define DRM_IOCTL_IGD_SET_ATTRS        DRM_IOWR(DRM_IGD_SET_ATTRS + BASE,\
 		emgd_drm_set_attrs_t)
 #define DRM_IOCTL_IGD_SET_PALETTE_ENTRY DRM_IOWR(DRM_IGD_SET_PALETTE_ENTRY +\
@@ -881,6 +914,12 @@ typedef struct _kdrm_bc_ts {
 #define DRM_IOCTL_IGD_WAIT_VBLANK			DRM_IOWR(DRM_IGD_WAIT_VBLANK + BASE,\
 		emgd_drm_driver_set_sync_refresh_t)
 
+#define DRM_IOCTL_IGD_CONFIG_BUFFS     DRM_IOWR(DRM_IGD_CONFIG_BUFFS + BASE,\
+		emgd_drm_cfg_bufs_t)
+#define DRM_IOCTL_IGD_SWITCH_HZ        DRM_IOWR(DRM_IGD_SWITCH_HZ + BASE,\
+		emgd_drm_switch_hz)
+
+
 
 /* From pvr_bridge.h */
 #define DRM_IOCTL_IGD_RESERVED_1       DRM_IOW(DRM_IGD_RESERVED_1 + BASE, \
@@ -907,6 +946,8 @@ typedef struct _kdrm_bc_ts {
 		emgd_drm_video_flush_tlb_t)
 #define DRM_IOCTL_IGD_PREINIT_MMU  DRM_IOR(DRM_IGD_PREINIT_MMU + BASE,\
 		emgd_drm_preinit_mmu_t)
+#define DRM_IOCTL_IGD_UNLOCK_PLANES  DRM_IOR(DRM_IGD_UNLOCK_PLANES + BASE,\
+		emgd_drm_unlock_planes_t)
 #define DRM_IOCTL_IGD_GET_DISPLAY_INFO  DRM_IOR(DRM_IGD_GET_DISPLAY_INFO + BASE,\
 		emgd_drm_get_display_info_t)
 /* For Buffer Class of Texture Stream */

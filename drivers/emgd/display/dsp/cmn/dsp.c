@@ -179,14 +179,14 @@ static unsigned long dsp_get_fw_dc(igd_context_t *context)
 	int port_allocated = 0;
 	unsigned long port_value;
 	unsigned long fw_dc = 0;
-	unsigned char *mmio = EMGD_MMIO(context->device_context.virt_mmadr);
 
 	EMGD_TRACE_ENTER;
 
 	/* Go through the port table */
 	while ((p = dsp_get_next_port(context, p, 0)) != NULL) {
 
-		port_value = EMGD_READ32(mmio + p->port_reg);
+		port_value = dsp_context.context->mod_dispatch.get_port_control(p->port_number, p->port_reg);
+		EMGD_DEBUG("port number = %lx, port reg = %lx, value = %lx", p->port_number, p->port_reg, port_value);
 		if(port_value & BIT(31)) { /* is the port ON? */
 
 			if(port1) {
@@ -1892,6 +1892,8 @@ int dsp_init(igd_context_t *context)
 			 */
 			(*(igd_display_plane_t **)plane)->fb_info->fb_base_offset = 0;
 			(*(igd_display_plane_t **)plane)->fb_info->visible_offset = 0;
+			(*(igd_display_plane_t **)plane)->fb_info->saved_offset = 0;
+			(*(igd_display_plane_t **)plane)->fb_info->lock = FALSE;
 			dsp_context.num_dsp_planes++;
 		}
 		plane++;

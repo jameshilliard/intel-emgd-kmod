@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: msvdx.c
- * $Revision: 1.28 $
+ * $Revision: 1.27 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -146,9 +146,9 @@ unsigned long populate_fence_id(igd_context_t *context, unsigned long *mtx_msgs,
 		unsigned long mtx_msg_cnt)
 {
 	platform_context_plb_t *platform;
-	unsigned long submit_size;
-	unsigned long submit_id;
-	unsigned long context_id;
+	unsigned long submit_size = 0;
+	unsigned long submit_id = 0;
+	unsigned long context_id = 0;
 	unsigned int msg;
 
 	platform = (platform_context_plb_t *)context->platform_context;
@@ -181,39 +181,44 @@ int process_mtx_messages(igd_context_t *context,
 		unsigned long *mtx_msgs, unsigned long mtx_msg_cnt,
 		unsigned long fence)
 {
-	unsigned char *mmio = context->device_context.virt_mmadr;
 	platform_context_plb_t *platform;
 	unsigned long submit_size;
 	unsigned long submit_id;
 	unsigned int msg;
 	unsigned long skipped_msg_cnt;
-    unsigned long msvdx_status;
+	unsigned long msvdx_status;
 
 	EMGD_TRACE_ENTER;
 
 	platform = (platform_context_plb_t *)context->platform_context;
 
     // message processing is about to start .. set the flag=bit 2
-    spin_lock(&platform->msvdx_init_plb);
-    platform->msvdx_status = platform->msvdx_status | 2;
-    msvdx_status = platform->msvdx_status;
-    spin_unlock(&platform->msvdx_init_plb);
+	spin_lock(&platform->msvdx_init_plb);
+	platform->msvdx_status = platform->msvdx_status | 2;
+	msvdx_status = platform->msvdx_status;
+	spin_unlock(&platform->msvdx_init_plb);
 
-	if (msvdx_status & 1)
-	{
-	    // OOPS: reset/fw load in progress ... return from here
-        spin_lock(&platform->msvdx_init_plb);
-        platform->msvdx_status = platform->msvdx_status & ~2;  // unset message processing status.
-        spin_unlock(&platform->msvdx_init_plb);
+    if (msvdx_status & 1)
+    {
+	// OOPS: reset/fw load in progress ... return from here
+	spin_lock(&platform->msvdx_init_plb);
+	platform->msvdx_status = platform->msvdx_status & ~2;  // unset message processing status.
+	spin_unlock(&platform->msvdx_init_plb);
 
-        return 0;
-    }
+	return 0;
+	}
 
 	save_msg = mtx_msgs;
 	save_msg_cnt = mtx_msg_cnt;
 	skipped_msg_cnt = 0;
 
 	for (msg = 0; msg < mtx_msg_cnt; msg++) {
+
+		if(!mtx_msgs) {
+			printk(KERN_ERR "Invalid message");
+			return -IGD_ERROR_INVAL;
+		}
+
 		submit_size = (mtx_msgs[0] & 0x000000ff);
 		submit_id = (mtx_msgs[0] & 0x0000ff00) >> 8;
 
@@ -222,6 +227,11 @@ int process_mtx_messages(igd_context_t *context,
 			EMGD_ERROR("Unknown MTX message id 0x%lx", submit_id);
 			skipped_msg_cnt++;
 			continue;
+		}
+
+		if(!(mtx_msgs + sizeof(unsigned long))) {
+			printk(KERN_ERR "Invalid message");
+			return -IGD_ERROR_INVAL;
 		}
 
 		/* reuse the sgx phy PD */
@@ -244,10 +254,10 @@ int process_mtx_messages(igd_context_t *context,
 		}
 	}
 
-    // We are done processing messages .. unset the flag
+	// We are done processing messages .. unset the flag
 	spin_lock(&platform->msvdx_init_plb);
-    platform->msvdx_status = platform->msvdx_status & ~2;
-    spin_unlock(&platform->msvdx_init_plb);
+	platform->msvdx_status = platform->msvdx_status & ~2;
+	spin_unlock(&platform->msvdx_init_plb);
 
 	EMGD_TRACE_EXIT;
 	if (skipped_msg_cnt == mtx_msg_cnt) {

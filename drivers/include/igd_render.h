@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: igd_render.h
- * $Revision: 1.18 $
+ * $Revision: 1.18.12.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -112,6 +112,47 @@ typedef struct _igd_rect {
 	unsigned int y2;
 } igd_rect_t, *pigd_rect_t;
 
+/*
+ * Direct Display context for video-to-graphics bridge.
+ * (Added here for compatibility between User & Kernel space)
+ * Note: This structure must match EMGDHmiVideoContext.
+ */
+typedef struct _igd_dd_context {
+	unsigned int    usage;		/* requested display plane */
+	unsigned int    screen;		/* screen index for video output */
+	unsigned int    screen_w;	/* width of display screen */
+	unsigned int    screen_h;	/* height of display screen */
+	unsigned int    video_w;	/* width of IOH video frame */
+	unsigned int    video_h;	/* height of IOH video frame */
+	unsigned int	video_pitch; /* pitch of IOH video frame */
+	igd_rect_t      src;		/* video input source rectangle */
+	igd_rect_t      dest;		/* display output dest rectangle */
+} igd_dd_context_t, *pigd_dd_context_t;
+
+/* planes where reconfiguration and Z-ordering is supported */
+typedef enum _igd_plane_usage {
+	IGD_PLANE_NONE,
+	IGD_PLANE_HMI,
+	IGD_PLANE_X11,
+	IGD_PLANE_OVERLAY_VIDEO,
+	IGD_PLANE_OVERLAY_POPUP,
+	IGD_PLANE_SPRITE_VIDEO,
+	IGD_PLANE_SPRITE_POPUP,
+} igd_plane_usage_t;
+
+typedef struct _igd_buffer_config {
+	igd_plane_usage_t plane;	/* usage/ownership of this plane */
+	unsigned long     offset;	/* surface's GTT offset */
+	int               stride;	/* surface's stride (in bytes) */
+	igd_rect_t        src;		/* input source rectangle */
+	igd_rect_t        dest;		/* display destination rectangle */
+	int               extended_screen;
+	int               alpha_ena;	/* enables/disables constant alpha */
+	int               alpha_val;	/* constant alpha opacity value */
+	int               ckey_ena;	/* enables/disables color keying */
+	int               ckey_val;	/* source color key value */
+} igd_buffer_config_t, *pigd_buffer_config_t;
+
 typedef struct _igd_surface {
 	unsigned long offset;
 	unsigned int pitch;
@@ -161,8 +202,13 @@ typedef struct _igd_surface {
 } igd_surface_t, *pigd_surface_t;
 
 typedef struct _igd_surface_list {
-    unsigned long offset;
-    unsigned long size;
+	unsigned long offset;
+	unsigned long size;
+	unsigned long flags;
+	unsigned long pitch;
+	unsigned long width;
+	unsigned long height;
+	unsigned long pixel_format;
 } igd_surface_list_t, *pigd_surface_list_t;
 
 /*!

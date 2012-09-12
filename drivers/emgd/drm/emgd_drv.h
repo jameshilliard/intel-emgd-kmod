@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: emgd_drv.h
- * $Revision: 1.76 $
+ * $Revision: 1.76.28.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -198,6 +198,8 @@ int emgd_set_overlay_display(struct drm_device *dev, void *arg,
 	struct drm_file *file_priv);
 int emgd_query_2d_caps_hwhint(struct drm_device *dev, void *arg,
 	struct drm_file *file_priv);
+int emgd_unlock_planes(struct drm_device *dev, void *arg,
+    struct drm_file *file_priv);
 /* For Buffer Class of Texture Stream */
 int emgd_bc_ts_cmd_init(struct drm_device *dev, void *arg, struct drm_file *file_priv);
 int emgd_bc_ts_cmd_uninit(struct drm_device *dev, void *arg, struct drm_file *file_priv);

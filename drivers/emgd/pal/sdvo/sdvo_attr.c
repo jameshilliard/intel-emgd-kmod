@@ -1085,7 +1085,7 @@ unsigned long sdvo_get_bool_attrs(sdvo_device_context_t *p_ctx,
 		num_attrs = 0;
 
 		for (i = 0; i < ARRAY_SIZE(g_bool_data); i++) {
-			if((p_ctx->dev_cap.vendor_id == VENDOR_ID_OKI) &&
+			if((p_ctx->dev_cap.vendor_id == VENDOR_ID_LAPIS) &&
 				(p_ctx->dev_cap.device_id == 0x1) &&
 	            ((g_bool_data[i].id == PD_ATTR_ID_PANEL_PROTECT_HSYNC) ||
 	            (g_bool_data[i].id == PD_ATTR_ID_PANEL_PROTECT_VSYNC))) {
@@ -1117,7 +1117,7 @@ unsigned long sdvo_get_bool_attrs(sdvo_device_context_t *p_ctx,
 		p_attr_cur->type = PD_ATTR_TYPE_BOOL;
 		p_attr_cur->flags |= PD_ATTR_FLAG_DYNAMIC;
 
-		if((p_ctx->dev_cap.vendor_id == VENDOR_ID_OKI) &&
+		if((p_ctx->dev_cap.vendor_id == VENDOR_ID_LAPIS) &&
 			(p_ctx->dev_cap.device_id == 0x1) &&
 	        ((g_bool_data[i].id == PD_ATTR_ID_PANEL_PROTECT_HSYNC) ||
 	        (g_bool_data[i].id == PD_ATTR_ID_PANEL_PROTECT_VSYNC))) {

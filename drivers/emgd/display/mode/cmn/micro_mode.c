@@ -724,7 +724,8 @@ static int configure_display(
 				0));
 
 			EMGD_DEBUG(":Seamless = %s", seamless ?"ON" : "OFF");
-			mode_context->seamless = FALSE;
+			/* moved this to alter_displays to handle the case for CLONE */
+			/*mode_context->seamless = FALSE;*/
 			/* FIXME: For clone you get called twice. Need to
 			 * Fix that corner case
 			 */
@@ -853,6 +854,10 @@ static int configure_display(
 		 */
 
 		EMGD_DEBUG(" Seamless is TRUE");
+		/* special handling for fw clone to vext seamless */
+		if((IGD_DC_VEXT(config_drm.dc) && IGD_DC_CLONE(mode_context->fw_info->fw_dc))){
+			mode_context->dispatch->full->lock_planes(display);
+		}
 		if(mode_context->fw_info->program_plane == 1) {
 
 			/* This means we have to update the plane registers
@@ -1430,6 +1435,7 @@ int igd_alter_displays(
 		EMGD_DEBUG("Wait for vblank on secondary display");
 		mode_context->dispatch->wait_vblank(*secondary);
 	}
+
 
 	EMGD_TRACE_EXIT;
 	return 0;

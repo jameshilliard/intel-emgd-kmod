@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: micro_init_plb.c
- * $Revision: 1.13 $
+ * $Revision: 1.13.102.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -184,6 +184,7 @@ static void gtt_init_plb(igd_context_t *context)
 	/* Get the page table control register */
 	pge_ctl = readl(mmio + PSB_PGETBL_CTL);
 	gtt_phys_start = pge_ctl & PAGE_MASK;
+	context->device_context.valid_firmware_init = (pge_ctl != 0);
 
 	gtt_enabled = pge_ctl & PSB_PGETBL_ENABLED;
 
@@ -218,14 +219,14 @@ static void gtt_init_plb(igd_context_t *context)
 		context->device_context.virt_gttadr = gtt_table;
 
 		for (i=0; i < (1 << gtt_order); i++) {
-			gtt_table_page = virt_to_page(gtt_table + (PAGE_SIZE * i));
+			gtt_table_page = virt_to_page(((unsigned char *)gtt_table) + (PAGE_SIZE * i));
 			EMGD_DEBUG("Setting reserved bit on %p", gtt_table_page);
 			set_bit(PG_reserved, &gtt_table_page->flags);
 		}
 
 		gtt_phys_start = virt_to_phys(gtt_table);
 
-		for (i = 0; i < gtt_pages; i++) {
+		for (i = 0; i < gtt_pages * 1024; i++) {
 			gtt_table[i] = (unsigned long)context->device_context.scratch_page;
 		}
 
@@ -624,6 +625,20 @@ static int set_param_plb(igd_context_t *context, unsigned long id,
 static void shutdown_plb(igd_context_t *context)
 {
 	gtt_shutdown_plb(context);
+	/* If firmware didn't initialize the hardware, free the memory
+	 * we allocated to do that and restore the state */
+	if(!context->device_context.valid_firmware_init) {
+		int gtt_pages;
+		unsigned char *mmio = context->device_context.virt_mmadr;
+
+		printk(KERN_INFO "Freeing allocated GTT and clearing PSB_PGETBL_CTL to restore firmware state\n");
+
+		gtt_pages = pci_resource_len(((struct drm_device *)context->drm_dev)->pdev,
+					     PSB_GTT_RESOURCE) >> PAGE_SHIFT;
+		free_pages((unsigned long)context->device_context.virt_gttadr, gtt_pages);
+		writel(0, mmio + PSB_PGETBL_CTL);
+	}
+
 
 	OPT_MICRO_VOID_CALL(full_shutdown_plb(context));
 }

@@ -564,10 +564,11 @@ typedef struct _igd_framebuffer_info {
 	unsigned long visible_offset;
 
 	/* this is the offset that will be restored when swithcing back to dih mode from
-	 * dihclone mode
+	 * dihclone mode and also when unlock_plane is called.
 	 */
 
 	unsigned long saved_offset;
+	unsigned int lock;
 	/*!
 	 * @brief pixel format of the fb. See @ref pixel_formats
 	 *

@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: emgd_crtc.c
- * $Revision: 1.7 $
+ * $Revision: 1.4.14.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2011, Intel Corporation.
  *
@@ -158,55 +158,42 @@ static void emgd_crtc_dpms(struct drm_crtc *crtc, int mode)
 	EMGD_DEBUG("pipe=%d, mode=%d", emgd_crtc->crtc_id, mode);
 	pipe = emgd_crtc->igd_pipe;
 
-	/* The following check is a work around.KMS tries to program
-	 * both the crtcs and ports (LVDS and SDVO) even if it is in
-	 * single mode. It results in a SIGSEGV.
-	 * By putting this check we ensure that it moves forward
-	 * only if there is a valid context associated  with the
-	 * crtc. We check it by checking the owner of the pipe which
-	 * should not be null.
-	 */
-	if (pipe->owner){
 
-		switch(mode) {
+	switch(mode) {
+	case DRM_MODE_DPMS_ON:
+		EMGD_DEBUG("Checking if we have pipe timings");
+		if (!pipe->timing) {
+			/* If there is no pipe timing, we cannot enable */
+			EMGD_ERROR("No pipe timing, can't enable pipe");
+		} else {
+			EMGD_DEBUG("Calling program pipe");
+			mode_context->kms_dispatch->kms_program_pipe(emgd_crtc);
 
-			case DRM_MODE_DPMS_ON:
-				EMGD_DEBUG("Checking if we have pipe timings");
-				if (!pipe->timing) {
-					/* If there is no pipe timing, we cannot enable */
-					EMGD_ERROR("No pipe timing, can't enable pipe=%d, mode=%d",
-							emgd_crtc->crtc_id, DRM_MODE_DPMS_ON );
-				} else {
-					EMGD_DEBUG("Calling program pipe");
-					mode_context->kms_dispatch->kms_program_pipe(emgd_crtc);
-					EMGD_DEBUG("Calling program plane");
-					mode_context->kms_dispatch->
-						kms_set_plane_pwr(emgd_crtc, TRUE);
+			EMGD_DEBUG("Calling program plane");
+			mode_context->kms_dispatch->kms_set_plane_pwr(emgd_crtc, TRUE);
 
-					crtc->enabled = true;
-				}
-				break;
-
-			case DRM_MODE_DPMS_STANDBY:
-			case DRM_MODE_DPMS_SUSPEND:
-			case DRM_MODE_DPMS_OFF:
-				if (emgd_crtc->igd_pipe->inuse && crtc->enabled) {
-					EMGD_DEBUG("Calling program plane");
-					mode_context->kms_dispatch->
-						kms_set_plane_pwr(emgd_crtc, FALSE);
-
-					EMGD_DEBUG("Calling program pipe");
-					mode_context->kms_dispatch->
-						kms_set_pipe_pwr(emgd_crtc, FALSE);
-					crtc->enabled = false;
-				}else {
-					EMGD_ERROR("pipe is already off");
-				}
-				break;
-			default:
-				break;
+			crtc->enabled = true;
 		}
+		break;
+
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+	case DRM_MODE_DPMS_OFF:
+		if (emgd_crtc->igd_pipe->inuse && crtc->enabled) {
+			EMGD_DEBUG("Calling program plane");
+			mode_context->kms_dispatch->kms_set_plane_pwr(emgd_crtc, FALSE);
+
+			EMGD_DEBUG("Calling program pipe");
+			mode_context->kms_dispatch->kms_set_pipe_pwr(emgd_crtc, FALSE);
+			crtc->enabled = false;
+		} else {
+			EMGD_ERROR("pipe is already off");
+		}
+		break;
+	default:
+		break;
 	}
+
 	EMGD_TRACE_EXIT;
 }
 
@@ -701,7 +688,6 @@ int crtc_pageflip_handler(struct drm_device *dev, int port_num)
 			crtcnum = 1;
 		}
 	}
-
 
 	emgd_crtc = devpriv->crtcs[crtcnum];
 

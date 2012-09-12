@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: emgd_drv.c
- * $Revision: 1.147 $
+ * $Revision: 1.145.28.6 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -82,6 +82,10 @@ extern int  msvdx_pre_init_plb(struct drm_device *dev);
 extern int msvdx_shutdown_plb(igd_context_t *context);
 extern emgd_drm_config_t config_drm;
 extern int context_count;
+#ifdef SUPPORT_V2G_CAMERA
+/* V2G Camera Module Exported API */
+extern int v2g_start_camera();
+#endif
 
 extern void emgd_drm_override_user_config(int type);
 /* This must be defined whether debug or release build */
@@ -391,6 +395,8 @@ static struct drm_ioctl_desc emgd_ioctl[] = {
 		DRM_MASTER|DRM_UNLOCKED),
 	EMGD_IOCTL_DEF(DRM_IOCTL_IGD_DIHCLONE_SET_SURFACE, emgd_dihclone_set_surface, DRM_MASTER|DRM_UNLOCKED),
 	EMGD_IOCTL_DEF(DRM_IOCTL_IGD_PREINIT_MMU, emgd_preinit_mmu, DRM_MASTER|DRM_UNLOCKED),
+	EMGD_IOCTL_DEF(DRM_IOCTL_IGD_UNLOCK_PLANES, emgd_unlock_planes, DRM_MASTER|DRM_UNLOCKED),
+
 
 	/*
 	 * For VIDEO (MSVDX/TOPAZ
@@ -408,19 +414,19 @@ static struct drm_ioctl_desc emgd_ioctl[] = {
 
 	/* For Buffer Class of Texture Stream */
 	EMGD_IOCTL_DEF(DRM_IOCTL_IGD_BC_TS_INIT, emgd_bc_ts_cmd_init,
-		DRM_AUTH|DRM_UNLOCKED),
+		DRM_AUTH),
 	EMGD_IOCTL_DEF(DRM_IOCTL_IGD_BC_TS_UNINIT, emgd_bc_ts_cmd_uninit,
-		DRM_AUTH|DRM_UNLOCKED),
+		DRM_AUTH),
 	EMGD_IOCTL_DEF(DRM_IOCTL_IGD_BC_TS_REQUEST_BUFFERS, emgd_bc_ts_cmd_request_buffers,
-		DRM_AUTH|DRM_UNLOCKED),
+		DRM_AUTH),
 	EMGD_IOCTL_DEF(DRM_IOCTL_IGD_BC_TS_RELEASE_BUFFERS, emgd_bc_ts_cmd_release_buffers,
-		DRM_AUTH|DRM_UNLOCKED),
+		DRM_AUTH),
 	EMGD_IOCTL_DEF(DRM_IOCTL_IGD_BC_TS_SET_BUFFER_INFO, emgd_bc_ts_set_buffer_info,
-		DRM_AUTH|DRM_UNLOCKED),
+		DRM_AUTH),
 	EMGD_IOCTL_DEF(DRM_IOCTL_IGD_BC_TS_GET_BUFFERS_COUNT, emgd_bc_ts_get_buffers_count,
-		DRM_AUTH|DRM_UNLOCKED),
+		DRM_AUTH),
 	EMGD_IOCTL_DEF(DRM_IOCTL_IGD_BC_TS_GET_BUFFER_INDEX, emgd_bc_ts_get_buffer_index,
-		DRM_AUTH|DRM_UNLOCKED),
+		DRM_AUTH),
 };
 
 static int emgd_max_ioctl = DRM_ARRAY_SIZE(emgd_ioctl);
@@ -459,7 +465,75 @@ static igd_context_t *drm_HAL_context = NULL;
 static igd_dispatch_t *drm_HAL_dispatch = NULL;
 
 
+int emgd_get_display_handle(void **display_handle, int screen_number)
+{
+	emgd_drm_get_display_t drm_data;
+	struct drm_file file_priv;
+	int ret;
+	drm_emgd_priv_t *priv = NULL;
+	igd_display_pipe_t *primary_pipe = NULL;
+	igd_display_pipe_t *secondary_pipe = NULL;
+	igd_plane_t *primary_plane = NULL;
+	igd_plane_t *secondary_plane = NULL;
+	unsigned long pipe_num = 0;
+	unsigned long port_num = 0;
 
+	EMGD_TRACE_ENTER;
+
+	memset(&drm_data, 0, sizeof(emgd_drm_get_display_t));
+	memset(&file_priv, 0, sizeof(struct drm_file));
+
+	drm_HAL_context->mod_dispatch.dsp_get_planes_pipes(&primary_plane, &secondary_plane, &primary_pipe, &secondary_pipe);
+
+	priv = (drm_emgd_priv_t *)((struct drm_device *)drm_HAL_context->drm_dev)->dev_private;
+
+	if (0 == screen_number) {
+		if (NULL == priv->primary || NULL == primary_pipe) {
+			EMGD_ERROR("Primary Display & Pipe does not exist!");
+			return 1;
+		}
+		port_num = priv->primary_port_number;
+		pipe_num = primary_pipe->pipe_num;
+	} else {
+		if (NULL == priv->secondary || NULL == secondary_pipe ) {
+			EMGD_ERROR("Secondary Display does not exist!");
+			return 1;
+		}
+		port_num = priv->secondary_port_number;
+		pipe_num = secondary_pipe->pipe_num;
+	}
+
+	drm_data.port_number = port_num;
+
+	ret = emgd_get_display(drm_HAL_context->drm_dev, (void *)&drm_data, &file_priv);
+
+	/* set the requested display handle for the caller */
+	*display_handle = ret ? NULL : (void *)drm_data.display_handle;
+	if (NULL != *display_handle) {
+		PIPE(*display_handle)->pipe_num = pipe_num;
+		EMGD_DEBUG("port_num: %lu, pipe_number: %lu", port_num, pipe_num);
+	}
+
+	EMGD_TRACE_EXIT;
+	return ret;
+}
+EXPORT_SYMBOL(emgd_get_display_handle);
+
+int emgd_get_screen_size(int screen_num, unsigned short *width, unsigned short *height)
+{
+	EMGD_TRACE_ENTER;
+
+	if (NULL == width || NULL == height) {
+		return 1;
+	}
+
+	*width = (unsigned short)config_drm.width;
+	*height = (unsigned short)config_drm.height;
+
+	EMGD_TRACE_EXIT;
+	return 0;
+}
+EXPORT_SYMBOL(emgd_get_screen_size);
 /*!
  * get_pre_driver_info
  *
@@ -662,7 +736,6 @@ int emgd_startup_hal(struct drm_device *dev, igd_param_t *params)
 	int err = 0;
 
 	EMGD_TRACE_ENTER;
-
 
 	/* Initialize the various HAL modules: */
 	EMGD_DEBUG("Calling igd_module_init()");
@@ -1015,7 +1088,11 @@ void emgd_init_display(int merge_mod_params, drm_emgd_priv_t *priv)
 		 *************************************/
 		temp_bg_color = mode_context->display_color;
 		mode_context->display_color = config_drm.ss_data->bg_color;
-		full_clear_fb(mode_context, primary_fb_info, fb);
+		if(mode_context->seamless == FALSE)
+		{
+            full_clear_fb(mode_context, primary_fb_info, fb);
+		}
+
 		mode_context->display_color = temp_bg_color;
 
 		/*************************************
@@ -1047,6 +1124,8 @@ void emgd_init_display(int merge_mod_params, drm_emgd_priv_t *priv)
 	} else {
 		EMGD_ERROR("framebuffer base address is 0");
 	}
+
+	mode_context->seamless = FALSE;
 
 	if (!config_drm.kms) {
 		mode_context->context->dispatch.gmm_unmap(fb);
@@ -1389,6 +1468,17 @@ int emgd_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 #endif
 
+#ifdef SUPPORT_V2G_CAMERA
+	/* to start v2g camera module */
+	if (1 == config_drm.v2g) {
+		EMGD_DEBUG("V2G Camera Enabled.");
+		if (0 == v2g_start_camera()) {
+			EMGD_DEBUG("v2g camera started successfully!");
+		} else {
+			EMGD_ERROR("Fail to start v2g camera!");
+		}
+	}
+#endif
 	/* can not work out how to start PVRSRV */
 	/* Load Buffer Class Module*/
 	emgd_bc_ts_init();
@@ -2389,7 +2479,6 @@ static struct pci_driver emgd_pci_driver = EMGD_PCI_DRIVER;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
 static const struct file_operations emgd_driver_fops = EMGD_FOPS;
 #endif
-
 /**
  * DRM Sub driver entry points
  */

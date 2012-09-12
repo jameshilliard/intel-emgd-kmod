@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: reg_tnc.c
- * $Revision: 1.19 $
+ * $Revision: 1.18.60.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -1033,7 +1033,7 @@ int reg_restore_tnc(igd_context_t *context,
 	unsigned long lbb;
 	int i;
 
-       platform_context_tnc_t *platform_context;
+	platform_context_tnc_t *platform_context;
        platform_context = (platform_context_tnc_t *)context->platform_context;
 
 	EMGD_DEBUG("Entry - reg_restore");

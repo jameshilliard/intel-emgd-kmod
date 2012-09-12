@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: emgd_connector.c
- * $Revision: 1.3 $
+ * $Revision: 1.2.106.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2011, Intel Corporation.
  *
@@ -37,6 +37,7 @@
 
 
 #include "drm_emgd_private.h"
+#include "user_config.h"
 
 
 
@@ -60,7 +61,7 @@ static struct drm_encoder *emgd_connector_best_encoder(
 								struct drm_connector *connector);
 static void emgd_connector_save (struct drm_connector *connector);
 static void emgd_connector_restore (struct drm_connector *connector);
-
+extern emgd_drm_config_t config_drm;
 
 
 const struct drm_connector_funcs emgd_connector_funcs = {
@@ -105,6 +106,13 @@ static void emgd_mode_to_kms(igd_display_info_t *emgd_mode,
 	drm_mode->vtotal      = emgd_mode->vtotal;
 	drm_mode->flags       = emgd_mode->flags;
 	drm_mode->vrefresh    = emgd_mode->refresh;
+
+	if ((unsigned short)config_drm.width == emgd_mode->width &&
+		(unsigned short)config_drm.height == emgd_mode->height &&
+		(unsigned short)config_drm.refresh == emgd_mode->refresh) {
+
+		drm_mode->type |= DRM_MODE_TYPE_PREFERRED;
+	}
 
 	drm_mode_set_name(drm_mode);
 }

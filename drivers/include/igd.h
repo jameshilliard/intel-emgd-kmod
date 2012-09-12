@@ -1442,6 +1442,9 @@ typedef struct _igd_dispatch {
 	int (*query_ovl)(igd_display_h display_h,
 		unsigned int flags);
 
+	/* User mode only query_ovl */
+	int (*query_ovl2)(igd_display_h display_h,
+		unsigned int flags);
 	/*!
 	 * Query the overlay for the maximum width and height given the input
 	 * src video pixel format.
@@ -1620,6 +1623,8 @@ typedef struct _igd_dispatch {
 	 * Get MSVDX status.
 	 */
 	int (*msvdx_status)(igd_driver_h driver_handle, unsigned long *queue_status, unsigned long *mtx_msg_status);
+	/* show_desktop calls this function so, the planes now show the desktop instead of the splas screen */
+	int (*unlock_planes)(igd_display_h display_handle , unsigned int scrn_num);
 } igd_dispatch_t;
 
 #endif

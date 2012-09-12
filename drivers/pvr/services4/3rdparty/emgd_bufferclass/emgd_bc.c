@@ -189,10 +189,16 @@ GetBCBufferAddr (IMG_HANDLE hDevice,
     if (NULL == hDevice || NULL == hBuffer){
         return (PVRSRV_ERROR_INVALID_PARAMS);
     }
+        psBuffer = (BC_BUFFER *)hBuffer;
+
 	if (IMG_NULL != pbMapped) {
-		*pbMapped = IMG_TRUE;
+
+		if(psBuffer->mapped)
+			*pbMapped = IMG_TRUE;
+		else
+			*pbMapped = IMG_FALSE;
 	}
-    psBuffer = (BC_BUFFER *)hBuffer;
+
 
 	EMGD_DEBUG("Buffer 0x%lx", (IMG_UINT32)psBuffer);
 	if (NULL != ppsSysAddr) {

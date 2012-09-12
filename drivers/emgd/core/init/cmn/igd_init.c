@@ -913,6 +913,6 @@ void igd_query_2d_caps_hwhint(igd_driver_h driver_handle,
 /*----------------------------------------------------------------------------
  * File Revision History
  * $Id: igd_init.c,v 1.24 2011/09/30 07:53:25 rlim Exp $
- * $Source: /nfs/fm/proj/eia/cvsroot/koheo/linux/egd_drm/emgd/core/init/cmn/igd_init.c,v $
+ * $Source: /nfs/sie/disks/sie-cidgit_disk001/git_repos/GFX/cvs_fri22/koheo/linux/egd_drm/emgd/core/init/cmn/igd_init.c,v $
  *----------------------------------------------------------------------------
  */

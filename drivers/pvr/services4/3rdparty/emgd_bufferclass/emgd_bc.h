@@ -99,6 +99,7 @@ extern "C"
         IMG_UINT32 sBufferHandle;
         IMG_BOOL is_conti_addr;
 		IMG_UINT32 tag; /* Buffer Tag. -- Surface ID*/
+		IMG_BOOL mapped;
     } BC_BUFFER;
 
     typedef struct BC_DEVINFO_TAG

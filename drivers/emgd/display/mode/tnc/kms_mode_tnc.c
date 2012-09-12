@@ -1665,7 +1665,7 @@ static int kms_post_program_port_tnc(emgd_encoder_t * emgd_encoder,
 	if (port->pd_driver->post_set_mode) {
 		if (port->port_type == IGD_PORT_SDVO){
 			ret = port->pd_driver->post_set_mode(port->pd_context, timings,
-				status); /*Needed for OKI*/
+				status); /*Needed for LAPIS*/
 		} else {
 			ret = port->pd_driver->post_set_mode(port->pd_context, timings,
 				1<<pipe->pipe_num);

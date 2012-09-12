@@ -172,6 +172,8 @@ gmm_mem_buffer_t *emgd_alloc_pages(unsigned long num_pages, int type) {
 	struct page *page;
 	int i;
 	int order;
+	long num_pages_left = num_pages;
+	unsigned long num_pages_done = 0;
 
 	mem = (gmm_mem_buffer_t *)kzalloc(sizeof(gmm_mem_buffer_t), GFP_KERNEL);
 	if (mem == NULL) {
@@ -207,38 +209,67 @@ gmm_mem_buffer_t *emgd_alloc_pages(unsigned long num_pages, int type) {
 	 *   mem->pages[1] = mem->pages[0] + PAGE_SIZE
 	 */
 
-	if ((type == 1) || (type == 0)) {
-	/* Next allocate the pages */
-		for (i = 0; i < num_pages; i++) {
-			page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
-			if (page == NULL) {
+	if ((type == 1) || (type == 0))
+	{
+		/* Next allocate the pages */
+
+		for( i = 0; num_pages_left > 0; i++)
+		{
+			int j;
+			unsigned long num_pages_block;
+
+			/* calculate order for the page block */
+
+			for( order = 0; order < MAX_ORDER; order++ )
+			{
+				int temp_num_pages = POW2( order );
+
+				if( temp_num_pages == num_pages_left )
+					break;
+				if( temp_num_pages > num_pages_left )
+				{
+					--order;
+					break;
+				}
+				if( temp_num_pages == MAX_ORDER_NR_PAGES )
+					break;
+			}
+
+			num_pages_block = POW2( order );
+			page = alloc_pages(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO | __GFP_COMP, order);
+
+			if(page == NULL)
+			{
 				/* Error! */
 				printk(KERN_ERR "[EMGD] Memory allocation failure!\n");
-				if (mem->vmalloc_flag) {
-					vfree(mem->pages);
-				} else {
-					kfree(mem->pages);
-				}
-				kfree(mem);
+				emgd_free_pages(mem);
+
 				return NULL;
 			}
 
-			/* Make sure this page isn't cached */
-			if (set_memory_uc((unsigned long) page_address(page), 1) < 0) {
+			/* Make sure this page block isn't cached */
+			if (set_memory_uc((unsigned long) page_address(page), num_pages_block) < 0) {
 				printk(KERN_ERR "[EMGD] Unable to set page attributes for newly"
 					" allocated graphics memory.\n");
 				/* Rely on the fact that we've kept up the data structures: */
 				emgd_free_pages(mem);
 				/* XXX - THIS IS WHAT SOME OLD IEGD CODE DID--A GOOD IDEA??? */
-				set_memory_wb((unsigned long) page_address(page), 1);
-				__free_page(page);
+				set_memory_wb((unsigned long) page_address(page), num_pages_block);
+				__free_pages(page, order);
 				return NULL;
 			}
 
-			get_page(page);
-			mem->pages[i] = page;
-			mem->page_count++;
+			get_page( page );
+			for( j = 0; j < num_pages_block; j++ )
+			{
+				mem->pages[ num_pages_done + j ] = page + j;
+			}
+
+			num_pages_done += num_pages_block;
+			num_pages_left -= num_pages_block;
+			mem->page_count = num_pages_done;
 		}
+
 	} else {
 		if (num_pages == 1) {
 			order = 0;
@@ -277,7 +308,7 @@ gmm_mem_buffer_t *emgd_alloc_pages(unsigned long num_pages, int type) {
 					" allocated physical graphics memory.\n");
 				/* XXX - THIS IS WHAT SOME OLD IEGD CODE DID--A GOOD IDEA??? */
 				set_memory_wb((unsigned long) page_address(page), num_pages);
-				__free_pages(page, num_pages);
+				__free_pages(page, order);
 				if (mem->vmalloc_flag) {
 					vfree(mem->pages);
 				} else {
@@ -306,16 +337,49 @@ gmm_mem_buffer_t *emgd_alloc_pages(unsigned long num_pages, int type) {
  * Free memory pages.
  */
 void emgd_free_pages(gmm_mem_buffer_t *mem) {
-	int i;
+	int i, order;
 	struct page *page;
+	long num_pages_left = mem->page_count;
+	unsigned long num_pages_done = 0;
 
-	for (i = 0; i < mem->page_count; i++) {
-		page = mem->pages[i];
+	for( i = 0; num_pages_left > 0; i++)
+	{
+		int j;
+		unsigned long num_pages_block;
+
+		/* calculate order for the page block */
+
+		for( order = 0; order < MAX_ORDER; order++ )
+		{
+			int temp_num_pages = POW2( order );
+
+			if( temp_num_pages == num_pages_left )
+				break;
+			if( temp_num_pages > num_pages_left )
+			{
+				--order;
+				break;
+			}
+			if( temp_num_pages == MAX_ORDER_NR_PAGES )
+				break;
+		}
+
+		num_pages_block = POW2( order );
+		page = mem->pages[ num_pages_done ];
+
 		/* XXX - THIS IS WHAT SOME OLD IEGD CODE DID--A GOOD IDEA??? */
-		set_memory_wb((unsigned long) page_address(page), 1);
-		put_page(page);
-		__free_page(page);
-		mem->pages[i] = NULL;
+		set_memory_wb((unsigned long) page_address(page), num_pages_block);
+
+		put_page( page );
+		for( j = 0; j < num_pages_block; j++ )
+		{
+			mem->pages[ num_pages_done + j ] = NULL;
+		}
+
+		__free_pages(page, order);
+
+		num_pages_done += num_pages_block;
+		num_pages_left -= num_pages_block;
 	}
 
 	if (mem->vmalloc_flag) {

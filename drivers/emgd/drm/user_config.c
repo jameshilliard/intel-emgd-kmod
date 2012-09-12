@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: user_config.c
- * $Revision: 1.24 $
+ * $Revision: 1.24.60.2 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -581,6 +581,10 @@ emgd_drm_config_t config_drm = {
 		&config_params_config4,
 		&config_params_config5
 	}
+#ifdef SUPPORT_V2G_CAMERA
+	,
+	0	/* disable v2g camera*/
+#endif
 };
 
 

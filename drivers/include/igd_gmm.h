@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: igd_gmm.h
- * $Revision: 1.13 $
+ * $Revision: 1.13.26.2 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -106,6 +106,7 @@
 #define IGD_SURFACE_PHYS_PTR  0x00010000
 #define IGD_SURFACE_CI		0x00020000
 #define IGD_SURFACE_CI_V4L2_MAP	0x00040000		/*will be set when map_method=0 without WA*/
+#define IGD_SURFACE_CI_TEXTSTREAM		0x00080000
 /*
  * Mipmap flags are only valid on mipmap surfaces.
  * Planes flags are only valid on volume surfaces.
@@ -249,7 +250,13 @@ typedef struct _igd_memstat {
 } igd_memstat_t;
 
 
-
+struct emgd_ci_meminfo_t{
+	unsigned long v4l2_offset;
+	unsigned long virt;
+	unsigned long size;
+	unsigned int used;
+	unsigned long vbufqueue_handle;
+};
 /*!
  * @name GMM Alloc Cached Flags
  * @anchor gmm_alloc_cached_flags

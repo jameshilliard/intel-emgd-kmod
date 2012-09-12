@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: context.h
- * $Revision: 1.22 $
+ * $Revision: 1.22.60.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -76,6 +76,8 @@ typedef struct _inter_module_dispatch {
 	void (*filter_modes)(igd_context_t *context,
 		struct _igd_display_port *port,
 		struct _pd_timing *in_list);
+
+	unsigned long (*get_port_control)(unsigned long port_num, unsigned long port_reg);
 
 	/* FIXME: This should be a dsp function */
 	unsigned long (*mode_get_gpio_sets)(unsigned long **gpio);
@@ -230,6 +232,7 @@ typedef struct _device_context {
 	unsigned long hw_status_offset; /* Hw status page offset */
 	unsigned short gfx_freq;	/* Graphics Frequency, used to calculate PWM */
 	unsigned short core_freq;	/* Core Frequency, used to calculate DPLL freq */
+	int valid_firmware_init;	/* PSB_PGETBL_CTL != 0 */
 } device_context_t;
 
 struct _igd_context {

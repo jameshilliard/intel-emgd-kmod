@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: micro_mode_plb.c
- * $Revision: 1.22 $
+ * $Revision: 1.22.60.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -901,7 +901,15 @@ static void reset_plane_pipe_ports_plb(igd_context_t *context)
 			if(port->pd_type == PD_DISPLAY_TVOUT) {
 				tv_port = port;
 			}else {
-				port->pd_driver->set_power(port->pd_context, IGD_POWERSTATE_D3);
+				/*CH7036*/
+				if(context->device_context.power_state == IGD_POWERSTATE_D1) { //ACPI
+				/* D1 power state for graphics is requested*/
+					 port->pd_driver->set_power(port->pd_context,context->device_context.power_state);
+					/*pass it to pd*/
+				}
+				else {
+					port->pd_driver->set_power(port->pd_context, IGD_POWERSTATE_D3);
+				}/* else end*/
 			}
 #endif
 		}

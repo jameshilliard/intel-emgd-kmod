@@ -272,17 +272,31 @@ static int igd_query_ovl(igd_display_h display_h,
 		}
 	}
 
-	for (cur_ovl = 0; cur_ovl < OVL_MAX_HW; cur_ovl++) {
-		if (ovl_displays[cur_ovl] != NULL) {
-			ret = ovl_dispatch[cur_ovl].query_ovl(
-				(igd_display_h)(ovl_displays[cur_ovl]),
-				(flags & IGD_OVL_QUERY_MASK));
-			if (ret == FALSE) {
-				/* Can only return TRUE (event has occured and capability
-				 * is available) if it is TRUE for all displays */
-				return FALSE;
-			}
-		}
+	/* NOTE: As with alter_ovl2, user mode driver should decide which ovl
+	 * to flip. Instead of having a duplicate logic here to check for clone,
+	 * just flip the ovl bound to the display handle. This prevents a condition
+	 * in clone mode, where the user mode driver does 2 query_ovl calls for
+	 * each ovl plane, that translates into 4 query_ovl calls in kernel.
+	 */
+
+	/* Determine which display this overlay belongs to */
+	if(display == ovl_displays[OVL_PRIMARY]) {
+		cur_ovl = 0;
+	} else if (display == ovl_displays[OVL_SECONDARY]) {
+		cur_ovl = 1;
+	} else {
+		/* shouldn't get here. */
+		EMGD_TRACE_EXIT;
+		return  -IGD_ERROR_INVAL;
+	}
+
+	ret = ovl_dispatch[cur_ovl].query_ovl(
+		(igd_display_h)(ovl_displays[cur_ovl]),
+		(flags & IGD_OVL_QUERY_MASK));
+	if (ret == FALSE) {
+		/* Can only return TRUE (event has occured and capability
+		 * is available) if it is TRUE for all displays */
+		return FALSE;
 	}
 
 	return ret;

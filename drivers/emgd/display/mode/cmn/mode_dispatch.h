@@ -139,6 +139,10 @@ typedef struct _mode_full_dispatch {
 	 * @return Non-zero if the requested VBlank occured, zero if not.
 	 */
 	int (*vblank_occured)(unsigned long request_for);
+	unsigned long (*get_port_control)(unsigned long port_num, unsigned long port_reg);
+	void (*lock_planes)(igd_display_h display_handle);
+	int (*unlock_planes)(igd_display_h display_handle, unsigned int scrn_num);
+
 } mode_full_dispatch_t;
 
 typedef struct _mode_dispatch {

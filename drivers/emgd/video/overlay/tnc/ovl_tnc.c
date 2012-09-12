@@ -1,7 +1,7 @@
 /*
  *-----------------------------------------------------------------------------
  * Filename: ovl_tnc.c
- * $Revision: 1.30 $
+ * $Revision: 1.30.16.2 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -45,6 +45,7 @@
 #include "../cmn/ovl_coeff.h"
 #include "ovl2_tnc.h"
 
+#define OVL_DOWNSCALE_X_WORKAROUND
 
 /*-----------------------------------------------------------------------------
  * Common dispatch functions
@@ -100,6 +101,16 @@ static ovl_chipset_tnc_t ovl_chipset_tnc[] = {
 		(PF_DEPTH_8 | PF_TYPE_YUV_PLANAR), 1920, 1088},
 	{OVL_CONFIG_NO_LINE_BUFF, 0, 0, 0}
 };
+/* for Direct Display */
+typedef struct _dd_context_tnc {
+	igd_dd_context_t    bridge;
+	igd_surface_t       surf;
+	igd_ovl_info_t      ovl;
+} dd_context_tnc_t;
+
+/* Pointers to allocated memory for the Direct Display context info */
+static dd_context_tnc_t *dd_context_ovl;
+static dd_context_tnc_t *dd_context_ovl2;
 
 #ifdef DEBUG_BUILD_TYPE
 static void ovl_dump_regs_tnc(
@@ -2126,3 +2137,290 @@ static int query_max_size_ovl_tnc(
 	EMGD_TRACE_EXIT;
 	return IGD_SUCCESS;
 }
+
+/*
+ * enable_direct_display_tnc(): Enables direct display of video DMA input
+ * buffers on the Overlay or Sprite C plane of the specified screen.
+ */
+int enable_direct_display_tnc(void *arg, igd_dd_context_t dd_context)
+{
+	igd_display_context_t *display = (igd_display_context_t *)arg;
+	dd_context_tnc_t *dd_context_ptr;
+#ifdef OVL_DOWNSCALE_X_WORKAROUND
+	int src_w, dest_w, scale, rem, fix_needed;
+#endif
+
+	EMGD_TRACE_ENTER;
+
+	/* Ensure the display context has been set */
+	if (display == NULL) {
+		printk(KERN_ERR "display context (arg) cannot be NULL !\n");
+		return -EINVAL;
+	}
+	/* Ensure the igd context has been set */
+	if (display->context == NULL) {
+		printk(KERN_INFO "igd context cannot be NULL !\n");
+		return -EINVAL;
+	}
+	switch (dd_context.usage) {
+	case IGD_PLANE_OVERLAY_VIDEO:
+		/* Check to see if direct display on Overlay plane is available */
+		if (dd_context_ovl) {
+			printk(KERN_ERR "Overlay direct display already enabled !\n");
+			return -EBUSY;
+		}
+		break;
+	case IGD_PLANE_SPRITE_VIDEO:
+		/* Check to see if direct display on Sprite C plane is available */
+		if (dd_context_ovl2) {
+			printk(KERN_ERR "Overlay direct display already enabled !\n");
+			return -EBUSY;
+		}
+		break;
+	default:
+		printk(KERN_ERR "Invalid direct display usage type (%d) !\n",
+				dd_context.usage);
+		return -EINVAL;
+	}
+	/* Attempt to allocate the direct display context block */
+	dd_context_ptr = OS_ALLOC(sizeof(dd_context_tnc_t));
+	if (dd_context_ptr == NULL) {
+		printk(KERN_ERR "Unable to allocate DD context block !\n");
+		return -ENOMEM;
+	}
+	/* Clear the DD context block and then copy the bridge data into it */
+	OS_MEMSET(dd_context_ptr, 0, sizeof(dd_context_tnc_t));
+	dd_context_ptr->bridge = dd_context;
+
+	/* Initialize color keying, video quality, and gamma */
+	dd_context_ptr->ovl.color_key.src_lo = 0x00000000;
+	dd_context_ptr->ovl.color_key.src_hi = 0x00000000;
+	dd_context_ptr->ovl.color_key.dest = 0xFF00FF; /* customer specified */
+	dd_context_ptr->ovl.color_key.flags = IGD_OVL_DST_COLOR_KEY_DISABLE;
+	dd_context_ptr->ovl.video_quality.contrast = 0x8000;
+	dd_context_ptr->ovl.video_quality.brightness = 0x8000;
+	dd_context_ptr->ovl.video_quality.saturation = 0x8000;
+	dd_context_ptr->ovl.gamma.red = 0x100;
+	dd_context_ptr->ovl.gamma.green = 0x100;
+	dd_context_ptr->ovl.gamma.blue = 0x100;
+	dd_context_ptr->ovl.gamma.flags = IGD_OVL_GAMMA_DISABLE;
+
+	/* Ensure source rectangle starts on even coordinates */
+	dd_context_ptr->bridge.src.x1 = (dd_context_ptr->bridge.src.x1 + 1) & ~1;
+	dd_context_ptr->bridge.src.y1 = (dd_context_ptr->bridge.src.y1 + 1) & ~1;
+
+	/* Ensure destination rectangle starts on even coordinates */
+	dd_context_ptr->bridge.dest.x1 = (dd_context_ptr->bridge.dest.x1 + 1) & ~1;
+	dd_context_ptr->bridge.dest.y1 = (dd_context_ptr->bridge.dest.y1 + 1) & ~1;
+
+	/* Initialize the generic rendering surface attributes */
+	dd_context_ptr->surf.width = dd_context_ptr->bridge.src.x2 -
+		dd_context_ptr->bridge.src.x1 + 1;
+	dd_context_ptr->surf.height = dd_context_ptr->bridge.src.y2 -
+		dd_context_ptr->bridge.src.y1 + 1;
+	dd_context_ptr->surf.flags = IGD_OVL_ALTER_ON;
+	dd_context_ptr->surf.pitch = dd_context.video_pitch;
+
+#ifdef OVL_DOWNSCALE_X_WORKAROUND
+	src_w = dd_context_ptr->surf.width;
+	dest_w = dd_context_ptr->bridge.dest.x2 - dd_context_ptr->bridge.dest.x1 + 1;
+	scale = src_w / dest_w;
+	rem = src_w % dest_w;
+	fix_needed = 0;
+
+	/*
+	 * If downscaling along the X dimension we need to avoid scale factors
+	 * that are greater than 4 and less than 9, and greater than 12.  The
+	 * issue is with the destination rectangle, so we leave the source
+	 * rectangle as specified, and expand the destination rectangle to be
+	 * exactly 4 or 12 times smaller.  We have to adjust the start and/or
+	 * end position accordingly, so that it fits within the screen bounds.
+	 */
+	if (src_w > dest_w) {
+		if ((scale > 4 && scale < 9) || (scale == 4 && rem)) {
+			/* Force a scale factor of 4 here */
+			dest_w = src_w / 4;
+			fix_needed = 1;
+		} else if ((scale > 12) || (scale == 12 && rem)) {
+			/* Force a scale factor of 12 here */
+			dest_w = src_w / 12;
+			fix_needed = 1;
+		}
+		if (fix_needed) {
+			/* Adjust the destination X endpoint */
+			dd_context_ptr->bridge.dest.x2 =
+				dd_context_ptr->bridge.dest.x1 + dest_w - 1;
+
+			/* Ensure rectangle X coordinates fit on screen */
+			if (dd_context_ptr->bridge.dest.x2 >=
+				dd_context_ptr->bridge.screen_w) {
+				/* Adjust X end position to screen edge */
+				dd_context_ptr->bridge.dest.x2 =
+					dd_context_ptr->bridge.screen_w - 1;
+				/* Adjust X start position according to width */
+				dd_context_ptr->bridge.dest.x1 =
+					dd_context_ptr->bridge.dest.x2 - dest_w + 1;
+			}
+		}
+	}
+#endif
+	if (dd_context.usage == IGD_PLANE_OVERLAY_VIDEO) {
+		/* Initialize the YUV422-specific surface attributes */
+		dd_context_ptr->surf.pixel_format = IGD_PF_YUV422_PACKED_UYVY;
+
+		/* Save this pointer as our Overlay context */
+		dd_context_ovl = dd_context_ptr;
+	} else {
+		/* Initialize the RGB565-specific surface attributes */
+		dd_context_ptr->surf.pixel_format = IGD_PF_RGB16_565;
+		dd_context_ptr->surf.pitch *= 2; /* RGB565 = 2 Bpp */
+
+		/* Save this pointer as our Overlay 2 (Sprite C) context */
+		dd_context_ovl2 = dd_context_ptr;
+	}
+	EMGD_TRACE_EXIT;
+	return 0;
+}
+EXPORT_SYMBOL(enable_direct_display_tnc);
+
+
+/*
+ * disable_direct_display_tnc(): Disables direct display of video on the
+ * Overlay plane or Sprite C plane.
+ */
+int disable_direct_display_tnc(void *arg, int usage)
+{
+	igd_display_context_t *display = (igd_display_context_t *)arg;
+	dd_context_tnc_t *dd_context_ptr;
+	int ret;
+
+	EMGD_TRACE_ENTER;
+
+	/* Ensure the display context has been set */
+	if (display == NULL) {
+		printk(KERN_ERR "Display context (arg) cannot be NULL !\n");
+		return -EINVAL;
+	}
+	/* Set the direct display context pointer according to the usage arg */
+	dd_context_ptr =
+		(usage == IGD_PLANE_OVERLAY_VIDEO) ? dd_context_ovl : dd_context_ovl2;
+
+	/* Ensure this direct display context pointer is set */
+	if (dd_context_ptr == NULL) {
+		printk(KERN_ERR "%s direct display not currently enabled !\n",
+				(usage == IGD_PLANE_OVERLAY_VIDEO) ? "Overlay" : "Sprite C");
+		return -EINVAL;
+	}
+	/* Set the flag to turn Overlay/Sprite C off */
+	dd_context_ptr->surf.flags = IGD_OVL_ALTER_OFF;
+
+	/* Check the DD context being referenced */
+	if (usage == IGD_PLANE_OVERLAY_VIDEO) {
+		/* Disable the display of the Overlay plane */
+		ret = alter_ovl_tnc(display, &dd_context_ovl->surf,
+				&dd_context_ovl->bridge.src, &dd_context_ovl->bridge.dest,
+				&dd_context_ovl->ovl, dd_context_ovl->surf.flags);
+
+		/* Mark the Overlay direct display context as invalid */
+		dd_context_ovl = NULL;
+	} else {
+		/* Disable the display of the Sprite C plane */
+		ret = alter_ovl2_tnc(display, &dd_context_ovl2->surf,
+				&dd_context_ovl2->bridge.src, &dd_context_ovl2->bridge.dest,
+				&dd_context_ovl2->ovl, dd_context_ovl2->surf.flags);
+
+		/* Mark the Sprite C direct display context as invalid */
+		dd_context_ovl2 = NULL;
+	}
+	/* Deallocate the DD context block for the direct display plane */
+	OS_FREE(dd_context_ptr);
+
+	EMGD_TRACE_EXIT;
+	return ret;
+}
+EXPORT_SYMBOL(disable_direct_display_tnc);
+
+
+/*
+ * direct_display_frame_tnc(): Performs the direct display of the new frame
+ * of video data on the Overlay plane or Sprite C plane.
+ */
+int direct_display_frame_tnc(void *arg, int usage, unsigned long offset)
+{
+	igd_display_context_t *display = (igd_display_context_t *)arg;
+	dd_context_tnc_t *dd_context_ptr;
+	int ret;
+
+	EMGD_TRACE_ENTER;
+
+	/* Ensure the display context is set */
+	if (display == NULL) {
+		printk(KERN_ERR "display context cannot be NULL !!!\n");
+		return -EINVAL;
+	}
+	/* Set the direct display context pointer according to the usage arg */
+	dd_context_ptr =
+		(usage == IGD_PLANE_OVERLAY_VIDEO) ? dd_context_ovl : dd_context_ovl2;
+
+	/* Ensure this direct display context pointer is set */
+	if (dd_context_ptr == NULL) {
+		printk(KERN_ERR "%s direct display context not set !\n",
+				(usage == IGD_PLANE_OVERLAY_VIDEO) ? "Overlay" : "Sprite C");
+		return -EINVAL;
+	}
+
+	/* Update the surface offset corresponding to this new frame */
+		dd_context_ptr->surf.offset = offset;
+
+	if (usage == IGD_PLANE_OVERLAY_VIDEO) {
+		/* display the new video frame on the Overlay plane */
+		ret = alter_ovl_tnc(display, &dd_context_ovl->surf,
+				&dd_context_ovl->bridge.src, &dd_context_ovl->bridge.dest,
+				&dd_context_ovl->ovl, dd_context_ovl->surf.flags);
+	} else {
+		/* display the new video frame on the Sprite C plane */
+		ret = alter_ovl2_tnc(display, &dd_context_ovl2->surf,
+				&dd_context_ovl2->bridge.src, &dd_context_ovl2->bridge.dest,
+				&dd_context_ovl2->ovl, dd_context_ovl2->surf.flags);
+	}
+	EMGD_TRACE_EXIT;
+	return ret;
+}
+EXPORT_SYMBOL(direct_display_frame_tnc);
+/*
+ * ovl_set_dest_colorkey_tnc(): Performs the enable or disable colorkey on the Overlay plane.
+ */
+int ovl_set_dest_colorkey_tnc(igd_dd_context_t dd_context, igd_ovl_color_key_info_t *color_key)
+{
+	EMGD_TRACE_ENTER;
+	switch (dd_context.usage) {
+	case IGD_PLANE_OVERLAY_VIDEO:
+		/* Check to see if direct display on Overlay plane is available */
+		if (!dd_context_ovl) {
+			printk(KERN_ERR "Overlay direct display = NULL !\n");
+			return -EINVAL;
+		}
+
+		dd_context_ovl->ovl.color_key.dest = color_key->dest;
+		dd_context_ovl->ovl.color_key.flags = color_key->flags;
+		break;
+	case IGD_PLANE_SPRITE_VIDEO:
+		/* Check to see if direct display on Sprite C plane is available */
+		if (!dd_context_ovl2) {
+			printk(KERN_ERR "Overlay direct display2 = NULL !\n");
+			return -EINVAL;
+		}
+
+		dd_context_ovl2->ovl.color_key.dest = color_key->dest;
+		dd_context_ovl2->ovl.color_key.flags = color_key->flags;
+		break;
+	default:
+		printk(KERN_ERR "Invalid direct display usage type (%d) !\n",
+				dd_context.usage);
+		return -EINVAL;
+	}
+
+	EMGD_TRACE_EXIT;
+	return 0;
+}
+EXPORT_SYMBOL(ovl_set_dest_colorkey_tnc);

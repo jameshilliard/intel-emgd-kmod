@@ -876,7 +876,7 @@ static struct drm_framebuffer *emgd_user_framebuffer_create(
 		/* TODO: Free the allocation at mode_cmd->handle */
 		kfree(emgd_fb);
 		emgd_fb = NULL;
-		return NULL;
+		return (void *)-EINVAL;
 	}
 
 	EMGD_TRACE_EXIT;

@@ -1,6 +1,6 @@
 /*-----------------------------------------------------------------------------
  * Filename: emgd_interface.c
- * $Revision: 1.191 $
+ * $Revision: 1.190.12.1 $
  *-----------------------------------------------------------------------------
  * Copyright (c) 2002-2010, Intel Corporation.
  *
@@ -2726,5 +2726,16 @@ int emgd_query_2d_caps_hwhint(struct drm_device *dev, void *arg,
 
     igd_query_2d_caps_hwhint(handle, caps_val, status);
 
+    return 0;
+}
+
+int emgd_unlock_planes(struct drm_device *dev, void *arg,
+			struct drm_file *file_priv)
+{
+    emgd_drm_unlock_planes_t *drm_data;
+    drm_data = arg;
+
+    /* do plane unlocking */
+	drm_data->rtn = dispatch->unlock_planes(drm_data->display_handle, drm_data->screen_num);
     return 0;
 }
