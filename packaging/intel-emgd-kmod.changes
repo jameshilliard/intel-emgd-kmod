@@ -1,3 +1,6 @@
+* Wed Sep 12 Artem Bityutskiy <artem.bityutskiy@linux.intel.com> - 3104
+- Update the emgd driver to the newer version: build 3104.
+
 * Tue Sep 11 2012 Artem Bityutskiy <artem.bityutskiy@linux.intel.com> - 2667
 - Add 2 more emgd driver configurations, partially fix TIVI-109.
 
