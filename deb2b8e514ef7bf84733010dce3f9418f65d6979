@@ -1,0 +1,10 @@
+Change-Id: Ideb2b8e514ef7bf84733010dce3f9418f65d6979
+Code-Review+1: Wang Quanxian <quanxian.wang@intel.com>
+Verified+1: Wang Quanxian <quanxian.wang@intel.com>
+Code-Review+2: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+Verified+1: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+Submitted-by: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+Submitted-at: Wed, 12 Sep 2012 17:01:45 +0900
+Reviewed-on: http://review.tizen.org/gerrit/1690
+Project: profile/ivi/intel-emgd-kmod
+Branch: refs/heads/master
