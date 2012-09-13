@@ -1,8 +1,5 @@
-* Wed Sep 13 2012 Quanxian Wang <quanxian.wang@intel.com> - 3104
-- bug fix caused by 'Add 2 more..' commit
-
 * Wed Sep 12 2012 Quanxian Wang <quanxian.wang@intel.com> - 3104
-- update to 3104 build
+- Update the emgd driver to build version 3104.
 
 * Tue Sep 11 2012 Artem Bityutskiy <artem.bityutskiy@linux.intel.com> - 2667
 - Add 2 more emgd driver configurations, partially fix TIVI-109.
@@ -15,17 +12,16 @@
   int the packaging sub-directory - it is not the right place for it.
 
 * Mon Sep 10 2012 Quanxian Wang <quanxian.wang@intel.com> - 2667
-- Fix breakage cause by the previous change - make package name
-  to be as it was before - intel-emgd-kmod.
+- While adding kernel version dependency, we accidentally changed the name
+  of the package which caused breakages. Fix that.
 
 * Thu Sep  6 2012 Quanxian Wang <quanxian.wang@intel.com> - 2667
-- Add kernel version dependency.
-
-* Mon Aug 13 2012 Quanxian Wang <quanxian.wang@intel.com> - 2667
-- Bug fix for pci_regs.h building error.
+- Add kernel version depenency. The drivers, generally speaking, work
+  only with the kernel they were built against. Thus, we should require
+  that kernel version to be installed.
 
 * Mon Aug 13 2012 Quanxian Wang <quanxian.wang@intel.com> - 2667
 - Add IVI display configuration.
 
 * Mon Aug 13 2012 Quanxian Wang <quanxian.wang@intel.com> - 2667
-- Add experimental build 2667 of the emgd driver.
+- Initial import of the experimental build 2667 of the emgd driver.
