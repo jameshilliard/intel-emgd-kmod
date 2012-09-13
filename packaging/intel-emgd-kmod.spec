@@ -28,7 +28,7 @@
 
 Name: intel-emgd-kmod
 Summary: Intel EMGD kernel module
-Version: 2667
+Version: 3104
 Release: 1%{?dist}
 License: GPL v2
 Vendor: Intel
