@@ -548,7 +548,7 @@ emgd_drm_config_t config_drm = {
 	1,	/* Whether to initialize the display at EMGD module startup time
 		 * (corresponds to the "init" module parameter)
 		 */
-	2,	/* The display configuration to use if initializing the display
+	1,	/* The display configuration to use if initializing the display
 		 * (corresponds to the "init" module parameter), where:
 		 * - 1 = Single port/display
 		 * - 2 = Cloned port/display (e.g. LVDS + CRT with different timings)
