@@ -1,3 +1,6 @@
+* Wed Sep 13 2012 Quanxian Wang <quanxian.wang@intel.com> - 3104
+- bug fix caused by 'Add 2 more..' commit
+
 * Wed Sep 12 2012 Quanxian Wang <quanxian.wang@intel.com> - 3104
 - update to 3104 build
 
