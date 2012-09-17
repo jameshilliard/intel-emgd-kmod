@@ -1,3 +1,6 @@
+* Mon Sep 17 2012 Rusty Lynch <rusty.lynch@intel.com> submit/trunk/20120917.230840@236529d
+- pass in the full path when attempting to mkdir in the systemd script
+
 * Mon Sep 17 2012 Rusty Lynch <rusty.lynch@intel.com> submit/trunk/20120913.064325@a710920
 - Add support for creating a weston.ini file at runtime
 
