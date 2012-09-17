@@ -1,3 +1,6 @@
+* Mon Sep 17 2012 Rusty Lynch <rusty.lynch@intel.com> submit/trunk/20120913.064325@a710920
+- Add support for creating a weston.ini file at runtime
+
 * Wed Sep 13 2012 Quanxian Wang <quanxian.wang@intel.com> - 3104
 - bug fix caused by 'Add 2 more..' commit
 

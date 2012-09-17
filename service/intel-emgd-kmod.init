@@ -77,6 +77,25 @@ set_config() {
 		configid=1
 	fi
 
+	# If an appropriate weston configuration file has not been created then create it
+	if [ ! -f /root/.config/weston.ini ]; then
+	    mkdir -p /root/.config
+	    cat > /root/.config/weston.ini <<EOF
+[shell]
+type=desktop-shell.so
+locking=false
+
+[launcher]
+icon=/usr/share/weston/terminal.png
+path=/usr/bin/weston-terminal
+
+[output]
+name=LVDS1
+mode= 60.00 800 864 976 1088 480 486 494 517 -hsync +vsync ==
+
+EOF
+fi
+
         echo "Boardname is $boardname, configid=$configid"
         /sbin/modprobe emgd configid=$configid
 }
