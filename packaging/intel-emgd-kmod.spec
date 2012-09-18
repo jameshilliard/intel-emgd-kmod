@@ -55,12 +55,14 @@ Intel EMGD kernel module for kernel
 make -C drivers %{?_smp_mflags}
 
 %install
-mkdir -p $RPM_BUILD_ROOT/usr/lib/systemd/system/
+mkdir -p $RPM_BUILD_ROOT/usr/lib/systemd/system/basic.target.wants/
 mkdir -p $RPM_BUILD_ROOT/usr/libexec/
 install -m 755 -d $RPM_BUILD_ROOT%{modpath}
 install -m 744 drivers/emgd.ko $RPM_BUILD_ROOT%{modpath}
-install -m 755 -D service/intel-emgd-kmod.service $RPM_BUILD_ROOT/usr/lib/systemd/system/
-install -m 755 -D service/intel-emgd-kmod.init $RPM_BUILD_ROOT/usr/libexec/
+install -m 755 -D service/%{name}.service $RPM_BUILD_ROOT/usr/lib/systemd/system/
+install -m 755 -D service/%{name}.init $RPM_BUILD_ROOT/usr/libexec/
+
+ln -sf ../%{name}.service $RPM_BUILD_ROOT/%{_libdir}/systemd/system/basic.target.wants/%{name}.service
 
 %clean  
 rm -Rf $RPM_BUILD_ROOT
@@ -69,30 +71,25 @@ rm -Rf $RPM_BUILD_ROOT
 ## create the dependency of kernel modules
 /sbin/depmod -av %{kernel_version} >/dev/null 2>&1 
 
-mkdir -p /usr/lib/systemd/system/basic.target.wants/
-pushd /usr/lib/systemd/system/basic.target.wants/
-ln -sf ../intel-emgd-kmod.service intel-emgd-kmod.service
-popd
-
 if [ -x /bin/systemctl ]; then
     /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-    /bin/systemctl start intel-emgd-kmod.service > /dev/null 2>&1 || :
+    /bin/systemctl start %{name}.service > /dev/null 2>&1 || :
 fi
 
 %postun
 /sbin/depmod -av %{kernel_version} >/dev/null 2>&1 
-rm -f /usr/lib/systemd/system/basic.target.wants/intel-emgd-kmod.service
 if [ -x /bin/systemctl ]; then
     systemctl daemon-reload >/dev/null 2>&1 || :
 fi
 
 %preun
 if [ -x /bin/systemctl ]; then
-    sytemctl stop intel-emgd-kmod.service >/dev/null 2>&1 || :
+    sytemctl stop %{name}.service >/dev/null 2>&1 || :
 fi
 
 %files
 %defattr(-,root,root,-)
 %{modpath}/emgd.ko
-%{_libdir}/systemd/system/intel-emgd-kmod.service
-/usr/libexec/intel-emgd-kmod.init
+%{_libdir}/systemd/system/%{name}.service
+%{_libdir}/systemd/system/basic.target.wants/%{name}.service
+/usr/libexec/%{name}.init
