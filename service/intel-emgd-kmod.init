@@ -11,9 +11,10 @@
 #       unknown
 # 1     Russellville                    DEVICE has 8086:8108
 # 2     CrownBay                        VENDOR !has 10db && DEVICE has 8086:4108
-# 3     CrossivilleOKI          	VENDOR has 10db && DEVICE has 8086:4108
+# 3     CrossvilleOKI	          	VENDOR has 10db && DEVICE has 8086:4108
 
 DEVICE_LSPCI=`lspci -n | cut -d$' ' -f3`
+IS_CONFIGID_SET=`modprobe -c | grep 'option emgd' | grep configid -c`
 
 find_board_type() {
 	local __resultvar=$1
@@ -54,7 +55,7 @@ find_board_type() {
 		elif [ $IS_CROWNBAY == '1' ]; then
 			_board_type='CrownBay'
 		else
-			_board_type='NextCom'
+			_board_type='NexCom'
 		fi
 	else
 		_board_type='unknown'
@@ -67,14 +68,23 @@ find_board_type() {
 
 platform="unknown"
 set_config() {
-        boardname=`find_board_type $platform`
-	configid=3
-	if [ $boardname == 'CrownBay' ]
-	then
-		configid=2
-	elif [ $boardname == 'Russellville' ] || [ $boardname == 'CrossvilleOKI' ]
-	then
-		configid=1
+	if [ $IS_CONFIGID_SET = '0' ]; then
+		# Trying to get a good value by default based on board type
+		boardname=`find_board_type $platform`
+		configid=3
+		if [ $boardname == 'CrownBay' ]
+		then
+			configid=2
+		elif [ $boardname == 'Russellville' ] || [ $boardname == 'CrossvilleOKI' ]
+		then
+			configid=1
+		fi
+		echo "Boardname is $boardname, configid=$configid"
+		/sbin/modprobe emgd configid=$configid
+	else
+		# There is a specific configuration given in /etc/modprobe.d/, use that one
+		echo "configid parameter set by user (via /etc/modprobe.d/)"
+		/sbin/modprobe emgd
 	fi
 
 	# If an appropriate weston configuration file has not been created then create it
@@ -95,9 +105,6 @@ mode= 60.00 800 864 976 1088 480 486 494 517 -hsync +vsync ==
 
 EOF
 fi
-
-        echo "Boardname is $boardname, configid=$configid"
-        /sbin/modprobe emgd configid=$configid
 }
 set_config
 exit $?
