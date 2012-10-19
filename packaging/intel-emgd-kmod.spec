@@ -32,12 +32,11 @@ Version: 3104
 Release: 1%{?dist}
 License: GPL v2
 Vendor: Intel
-Group: System/Kernel
+Group: System Environment/Kernel
 Source0: %{name}-%{version}.tar.gz
 BuildRequires: kernel-adaptation-intel-automotive-devel
-BuildRequires: kmod
 Requires: pciutils
-Requires: kmod
+Requires: module-init-tools
 Requires(post): /bin/ln
 %if %{kernel_number_str} != ""
 Requires: kernel-adaptation-intel-automotive = %{kernel_number}
@@ -55,12 +54,12 @@ Intel EMGD kernel module for kernel
 make -C drivers %{?_smp_mflags}
 
 %install
-mkdir -p $RPM_BUILD_ROOT/usr/lib/systemd/system/basic.target.wants/
-mkdir -p $RPM_BUILD_ROOT/usr/libexec/
+mkdir -p $RPM_BUILD_ROOT%{_libdir}/systemd/system/basic.target.wants/
+mkdir -p $RPM_BUILD_ROOT%{_libexecdir}
 install -m 755 -d $RPM_BUILD_ROOT%{modpath}
 install -m 744 drivers/emgd.ko $RPM_BUILD_ROOT%{modpath}
-install -m 755 -D service/%{name}.service $RPM_BUILD_ROOT/usr/lib/systemd/system/
-install -m 755 -D service/%{name}.init $RPM_BUILD_ROOT/usr/libexec/
+install -m 755 -D service/%{name}.service $RPM_BUILD_ROOT%{_libdir}/systemd/system/
+install -m 755 -D service/%{name}.init $RPM_BUILD_ROOT%{_libexecdir}
 
 ln -sf ../%{name}.service $RPM_BUILD_ROOT/%{_libdir}/systemd/system/basic.target.wants/%{name}.service
 
@@ -92,4 +91,4 @@ fi
 %{modpath}/emgd.ko
 %{_libdir}/systemd/system/%{name}.service
 %{_libdir}/systemd/system/basic.target.wants/%{name}.service
-/usr/libexec/%{name}.init
+%{_libexecdir}/%{name}.init

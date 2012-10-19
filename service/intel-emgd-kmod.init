@@ -1,19 +1,20 @@
-#!/bin/sh
+#!/bin/bash
 
-##################################################################
+######################################################################
 #
-#        Russellville  CrownBay    CrossvilleOKI    ML7213   NexCOM
-#monitor LVDS 7       LVDS 13     LVDS 7           LVDS 13   LVDS 7
-#Gfx     8086:8108    8086:4108   8086:4108        8086:4108 8086:4108
+#        Russellville  CrownBay    CrossvilleOKI   ML7213    NexCom
+#monitor LVDS 7        LVDS 13     LVDS 7          LVDS 13   LVDS 7
+#Gfx     8086:8108     8086:4108   8086:4108       8086:4108 8086:4108
 #
-#################################################################
+######################################################################
 #
 #       unknown
 # 1     Russellville                    DEVICE has 8086:8108
 # 2     CrownBay                        VENDOR !has 10db && DEVICE has 8086:4108
-# 3     CrossivilleOKI          	VENDOR has 10db && DEVICE has 8086:4108
+# 3     CrossvilleOKI	          	VENDOR has 10db && DEVICE has 8086:4108
 
-DEVICE_LSPCI=`lspci -n | cut -d$' ' -f3`
+PATH=$PATH:/bin:/sbin:/usr/bin
+DEVICE_LSPCI=`lspci -n | cut -d$' ' -f3 -s`
 
 find_board_type() {
 	local __resultvar=$1
@@ -54,7 +55,7 @@ find_board_type() {
 		elif [ $IS_CROWNBAY == '1' ]; then
 			_board_type='CrownBay'
 		else
-			_board_type='NextCom'
+			_board_type='NexCom'
 		fi
 	else
 		_board_type='unknown'
@@ -67,20 +68,55 @@ find_board_type() {
 
 platform="unknown"
 set_config() {
-        boardname=`find_board_type $platform`
-	configid=3
-	if [ $boardname == 'CrownBay' ]
-	then
-		configid=2
-	elif [ $boardname == 'Russellville' ] || [ $boardname == 'CrossvilleOKI' ]
-	then
-		configid=1
-	fi
+	IS_EMGD_NEEDED=0
+	for entry in $DEVICE_LSPCI; do
+		VENDOR_ID=0x`echo $entry | cut -d':' -f1`
+		DEVICE_ID=0x`echo $entry | cut -d':' -f2`
+		if [[ $VENDOR_ID -eq 0x8086 ]]; then
+			case $DEVICE_ID in
+				0x410[8-f] | 0x8108 | 0x8182 )
+					# This should cover all Intel Poulsbo and E6xx (Tunnel Creek) graphics core
+					echo "Found a Graphics core supported by EMGD: $entry"
+					IS_EMGD_NEEDED=1
+					;;
+			esac
+		fi
+	done
 
-	# If an appropriate weston configuration file has not been created then create it
-	if [ ! -f /root/.config/weston.ini ]; then
-	    /bin/mkdir -p /root/.config
-	    /bin/cat > /root/.config/weston.ini <<EOF
+	if [[ $IS_EMGD_NEEDED -ne 0 ]]; then
+		IS_CONFIGID_SET=`modprobe -c | grep 'options emgd' | grep configid -c`
+		if [[ $IS_CONFIGID_SET -eq 0 ]]; then
+			# Trying to get a good value by default based on board type
+			boardname=`find_board_type $platform`
+			configid=0
+			if [ $boardname == 'NexCom' ];
+			then
+				configid=3
+			elif [ $boardname == 'CrownBay' ];
+			then
+				configid=2
+			elif [ $boardname == 'Russellville' ] || [ $boardname == 'CrossvilleOKI' ];
+			then
+				configid=1
+			fi
+
+			if [ $boardname != 'unknown' ];
+			then
+				echo "Boardname is $boardname, configid=$configid"
+				modprobe emgd configid=$configid
+			else
+				echo "Could not determine what board we are running on, please set configid manually"
+			fi
+		else
+			# There is a specific configuration given in /etc/modprobe.d/, use that one
+			echo "configid parameter set by user (via /etc/modprobe.d/)"
+			modprobe emgd
+		fi
+
+		# If an appropriate weston configuration file has not been created then create it
+		if [ ! -f /root/.config/weston.ini ]; then
+			mkdir -p /root/.config
+			cat > /root/.config/weston.ini <<EOF
 [shell]
 type=desktop-shell.so
 locking=false
@@ -94,10 +130,9 @@ name=LVDS1
 mode= 60.00 800 864 976 1088 480 486 494 517 -hsync +vsync ==
 
 EOF
-fi
-
-        echo "Boardname is $boardname, configid=$configid"
-        /sbin/modprobe emgd configid=$configid
+		fi
+	fi
 }
+
 set_config
 exit $?

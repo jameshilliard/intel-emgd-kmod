@@ -1,3 +1,8 @@
+* Mon Oct 22 2012 Geoffroy Van Cutsem <geoffroy.vancutsem@intel.com> submit/trunk/20120918.193537@430ae22
+- Improve init script file to:
+-  Detect if EMGD should even be loaded
+-  Detect if the user has manually set the configid option
+
 * Tue Sep 18 2012 Rusty Lynch <rusty.lynch@intel.com> accepted/trunk/20120918.171908@15d1634
 - Cleanup the packaging spec file to make it more maintainable and also fix a bug
   where the systemd configuration was not correctly setup to trigger the driver to be loaded
