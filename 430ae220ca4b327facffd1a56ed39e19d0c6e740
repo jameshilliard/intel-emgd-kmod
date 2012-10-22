@@ -1,0 +1,8 @@
+Code-Review+2: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+Verified+1: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+Code-Review+1: Mikko Ylinen <mikko.ylinen@intel.com>
+Submitted-by: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+Submitted-at: Mon, 22 Oct 2012 20:27:17 +0900
+Reviewed-on: http://review.tizen.org/gerrit/2228
+Project: profile/ivi/intel-emgd-kmod
+Branch: refs/heads/1.0_post
