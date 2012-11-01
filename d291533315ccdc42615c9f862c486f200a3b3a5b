@@ -1,0 +1,8 @@
+Change-Id: Id291533315ccdc42615c9f862c486f200a3b3a5b
+Code-Review+2: Wang Quanxian <quanxian.wang@intel.com>
+Verified+1: Wang Quanxian <quanxian.wang@intel.com>
+Submitted-by: Wang Quanxian <quanxian.wang@intel.com>
+Submitted-at: Thu, 01 Nov 2012 19:22:01 +0900
+Reviewed-on: http://review.tizen.org/gerrit/2281
+Project: profile/ivi/intel-emgd-kmod
+Branch: refs/heads/2.0alpha
