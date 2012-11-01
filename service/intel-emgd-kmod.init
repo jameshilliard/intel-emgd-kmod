@@ -84,7 +84,7 @@ set_config() {
 	done
 
 	if [[ $IS_EMGD_NEEDED -ne 0 ]]; then
-		IS_CONFIGID_SET=`modprobe -c | grep 'options emgd' | grep configid -c`
+		IS_CONFIGID_SET=`modprobe -c | grep 'option emgd' | grep configid -c`
 		if [[ $IS_CONFIGID_SET -eq 0 ]]; then
 			# Trying to get a good value by default based on board type
 			boardname=`find_board_type $platform`
