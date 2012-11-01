@@ -1,3 +1,12 @@
+* Thu Nov  1 2012 Geoffroy Van Cutsem <geoffroy.vancutsem@intel.com>  submit/1.0/20121101.021155
+- Correct IS_CONFIGID_SET variable setting
+
+* Fri Oct 19 2012 Geoffroy Van Cutsem <geoffroy.vancutsem@intel.com> submit/1.0/20121026.180058
+- Detect if EMGD should even be loaded
+- Detect if the user has manually set the configid option
+- use macro instead of hardcoded paths
+- Requires module-init-tools instead of kmod
+                                            
 * Tue Sep 18 2012 Rusty Lynch <rusty.lynch@intel.com> accepted/trunk/20120918.171908@15d1634
 - Cleanup the packaging spec file to make it more maintainable and also fix a bug
   where the systemd configuration was not correctly setup to trigger the driver to be loaded
