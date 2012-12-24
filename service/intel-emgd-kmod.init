@@ -11,112 +11,101 @@
 #       unknown
 # 1     Russellville                    DEVICE has 8086:8108
 # 2     CrownBay                        VENDOR !has 10db && DEVICE has 8086:4108
-# 3     CrossvilleOKI	          	VENDOR has 10db && DEVICE has 8086:4108
+# 3     CrossvilleOKI                  VENDOR has 10db && DEVICE has 8086:4108
 
 PATH=$PATH:/bin:/sbin:/usr/bin
 DEVICE_LSPCI=`lspci -n | cut -d$' ' -f3 -s`
 
 find_board_type() {
-	local __resultvar=$1
-	local _board_type="unknown"
-        local IS_8108='0'
-        local IS_4108='0'
-        local IS_ML7213='0'
-        local IS_CROWNBAY='0'
-        local oldIFS=$IFS
-        #set -x
-	for entry in $DEVICE_LSPCI; do
-                #echo $entry
-                IFS=$':'
-        	set -- $entry
+    local __resultvar=$1
+    local _board_type="unknown"
+    local IS_8108='0'
+    local IS_4108='0'
+    local IS_ML7213='0'
+    local IS_CROWNBAY='0'
+    local oldIFS=$IFS
+    for entry in $DEVICE_LSPCI; do
+        IFS=$':'
+        set -- $entry
 
-		VENDOR=`echo $1`
-		DEVICE=`echo $2`
-        	if [ $VENDOR == '8086' ]; then
-        	    	if [ $DEVICE == '8108' ]; then 
-                		IS_8108='1'
-                		break
-            		elif [ $DEVICE == '4108' ]; then
-                		IS_4108='1'
-            		fi
-        	elif [ $VENDOR == '10db' ]; then
-            		IS_ML7213='1'
-        	elif [ $VENDOR == '12d8' ]; then
-            		IS_CROWNBAY='1'
-        	fi
-        	IFS=$oldIFS
-	done
+        VENDOR=0x`echo $1`
+        DEVICE=0x`echo $2`
+        if [ $VENDOR == '0x8086' ]; then
+            if [ $DEVICE == '0x8108' ]; then 
+                IS_8108='1'
+                break
+            elif [ $DEVICE == '0x4108' ]; then
+                IS_4108='1'
+            fi
+        elif [ $VENDOR == '0x10db' ]; then
+            IS_ML7213='1'
+        elif [ $VENDOR == '0x12d8' ]; then
+            IS_CROWNBAY='1'
+        fi
+        IFS=$oldIFS
+    done
+    if [ $IS_8108 == '1' ]; then
+        _board_type='Russellville'
+        IS_EMGD_NEEDED=1
+    elif [ $IS_4108 == '1' ]; then
+        if [ $IS_ML7213 == '1' ]; then
+            _board_type='CrossvilleOKI'
+            IS_EMGD_NEEDED=1
+        elif [ $IS_CROWNBAY == '1' ]; then
+            _board_type='CrownBay'
+            IS_EMGD_NEEDED=1
+        else
+            _board_type='NexCom'
+            IS_EMGD_NEEDED=1
+        fi
+    else
+        _board_type='unknown'
+    fi
 
-	if [ $IS_8108 == '1' ]; then
-		_board_type='Russellville'
-	elif [ $IS_4108 == '1' ]; then
-		if [ $IS_ML7213 == '1' ]; then
-			_board_type='CrossvilleOKI'
-		elif [ $IS_CROWNBAY == '1' ]; then
-			_board_type='CrownBay'
-		else
-			_board_type='NexCom'
-		fi
-	else
-		_board_type='unknown'
-	fi
+    # This logic is stupid and the reliable method is to query the firmware interface, which now is not available yet.
 
-	# This logic is stupid and the reliable method is to query the firmware interface, which now is not available yet.
-
-	echo "$_board_type"
+    echo "$_board_type $IS_EMGD_NEEDED"
 }
 
-platform="unknown"
 set_config() {
-	IS_EMGD_NEEDED=0
-	for entry in $DEVICE_LSPCI; do
-		VENDOR_ID=0x`echo $entry | cut -d':' -f1`
-		DEVICE_ID=0x`echo $entry | cut -d':' -f2`
-		if [[ $VENDOR_ID -eq 0x8086 ]]; then
-			case $DEVICE_ID in
-				0x410[8-f] | 0x8108 | 0x8182 )
-					# This should cover all Intel Poulsbo and E6xx (Tunnel Creek) graphics core
-					echo "Found a Graphics core supported by EMGD: $entry"
-					IS_EMGD_NEEDED=1
-					;;
-			esac
-		fi
-	done
+    set -- `find_board_type $platform`
+    boardname=`echo $1`
+    IS_EMGD_NEEDED=`echo $2`
+    if [[ $IS_EMGD_NEEDED -eq 0 ]]; then
+        return
+    else
+        IS_CONFIGID_SET=`modprobe -c | grep 'option emgd' | grep configid -c`
+        if [[ $IS_CONFIGID_SET -eq 0 ]]; then
+            # Trying to get a good value by default based on board type
+            configid=0
+            if [ $boardname == 'NexCom' ];
+            then
+                configid=3
+            elif [ $boardname == 'CrownBay' ];
+            then
+                configid=2
+            elif [ $boardname == 'Russellville' ] || [ $boardname == 'CrossvilleOKI' ];
+            then
+                configid=1
+            fi
 
-	if [[ $IS_EMGD_NEEDED -ne 0 ]]; then
-		IS_CONFIGID_SET=`modprobe -c | grep 'option emgd' | grep configid -c`
-		if [[ $IS_CONFIGID_SET -eq 0 ]]; then
-			# Trying to get a good value by default based on board type
-			boardname=`find_board_type $platform`
-			configid=0
-			if [ $boardname == 'NexCom' ];
-			then
-				configid=3
-			elif [ $boardname == 'CrownBay' ];
-			then
-				configid=2
-			elif [ $boardname == 'Russellville' ] || [ $boardname == 'CrossvilleOKI' ];
-			then
-				configid=1
-			fi
+            if [ $boardname != 'unknown' ];
+            then
+                echo "Boardname is $boardname, configid=$configid"
+                modprobe emgd configid=$configid
+            else
+                echo "Could not determine what board we are running on, please set configid manually"
+            fi
+        else
+            # There is a specific configuration given in /etc/modprobe.d/, use that one
+            echo "configid parameter set by user (via /etc/modprobe.d/)"
+            modprobe emgd
+        fi
 
-			if [ $boardname != 'unknown' ];
-			then
-				echo "Boardname is $boardname, configid=$configid"
-				modprobe emgd configid=$configid
-			else
-				echo "Could not determine what board we are running on, please set configid manually"
-			fi
-		else
-			# There is a specific configuration given in /etc/modprobe.d/, use that one
-			echo "configid parameter set by user (via /etc/modprobe.d/)"
-			modprobe emgd
-		fi
-
-		# If an appropriate weston configuration file has not been created then create it
-		if [ ! -f /root/.config/weston.ini ]; then
-			mkdir -p /root/.config
-			cat > /root/.config/weston.ini <<EOF
+        # If an appropriate weston configuration file has not been created then create it
+        if [ ! -f /root/.config/weston.ini ]; then
+            mkdir -p /root/.config
+            cat > /root/.config/weston.ini <<EOF
 [shell]
 type=desktop-shell.so
 locking=false
@@ -130,9 +119,10 @@ name=LVDS1
 mode= 60.00 800 864 976 1088 480 486 494 517 -hsync +vsync ==
 
 EOF
-		fi
-	fi
+        fi
+    fi
 }
 
+platform="unknown"
 set_config
 exit $?
