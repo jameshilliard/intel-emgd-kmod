@@ -1,0 +1,10 @@
+Change-Id: I664f91138d0d3ac0fc25846b701ce9254549d649
+Code-Review+1: Wang Quanxian <quanxian.wang@intel.com>
+Verified+1: Wang Quanxian <quanxian.wang@intel.com>
+Code-Review+2: Tracy Graydon <tracy.graydon@intel.com>
+Verified+1: Tracy Graydon <tracy.graydon@intel.com>
+Submitted-by: Tracy Graydon <tracy.graydon@intel.com>
+Submitted-at: Thu, 03 Jan 2013 05:57:31 +0900
+Reviewed-on: http://review.tizen.org/gerrit/2632
+Project: profile/ivi/intel-emgd-kmod
+Branch: refs/heads/1.0
